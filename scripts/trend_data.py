@@ -6,6 +6,7 @@ This script will handle trend data processing and analysis.
 
 def main():
     # TODO: Implement trend data processing logic
+    print("test")
     pass
 
 if __name__ == "__main__":
