@@ -24,12 +24,10 @@ def fetch_tech_news():
 
     articles = []
     for entry in feed.entries[:10]:
-        # Thu, 04 Dec 2025 19:00:00 +0000
-        # print(entry.get("published"))
-
         article = {
             "title": entry.get("title"),
             "link": entry.get("link"),
+            "published": entry.get("published"),
             # rss provided summary, not ai generated
             "summary": entry.get("summary")
         }
@@ -37,12 +35,14 @@ def fetch_tech_news():
     return articles
 
 def get_today_news(articles):
-    today = datetime.now().strftime("%Y%m%d")
+    today_articles = []
+    day = datetime.now().strftime("%a")
+
     for article in articles:
-        date = article.get("published", "")
-        print(date)
-        if date.startswith(today):
-            print("a")
+        date = article.get("published")
+        if date.startswith(day):
+            today_articles.append(article)
+    return today_articles
 
 def save_to_json(data, filename):
     with open(filename, "w", encoding="utf-8") as f:
@@ -80,4 +80,5 @@ if __name__ == "__main__":
     unique_articles = remove_duplicates(articles)
     # print(unique_articles)
 
-    get_today_news(articles)
+    today_articles = get_today_news(articles)
+    # print(today_articles)
