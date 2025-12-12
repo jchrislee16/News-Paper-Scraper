@@ -64,6 +64,22 @@ def remove_duplicates(articles):
             unique_articles.append(article)
     return unique_articles
 
+# goal: ai new analysis
+def score_articles(articles):
+    scores = []
+    for article in articles:
+        score = rate_article(article)
+        scores.append(score)
+    return scores
+
+def rate_article(article):
+    score = 0
+    if 20 < len(article.get("title")) < 50:
+        score += 1
+    keywords = ["technology", "ai"]
+    
+    return score
+
 if __name__ == "__main__":
     filename = get_filename()
     
