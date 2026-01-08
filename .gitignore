@@ -1,0 +1,13 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Cache files
+*_news_*.json
+trending_news_*.json
+tech_news_*.json
+all_news_*.json
+
+# OS
+.DS_Store

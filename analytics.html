@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>News Analytics - Click Tracking</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+  <style>
+    body {
+      background-color: #f8f9fa;
+      padding: 20px;
+    }
+    .stat-card {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .stat-number {
+      font-size: 2.5rem;
+      font-weight: bold;
+      color: #007bff;
+    }
+    .stat-label {
+      color: #6c757d;
+      font-size: 0.9rem;
+    }
+    .article-row {
+      padding: 10px 0;
+      border-bottom: 1px solid #eee;
+    }
+    .article-row:last-child {
+      border-bottom: none;
+    }
+    .click-count {
+      background: #28a745;
+      color: white;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+    }
+    .category-badge {
+      padding: 3px 10px;
+      border-radius: 4px;
+      color: white;
+      font-size: 0.75rem;
+    }
+    .refresh-btn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+    }
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #6c757d;
+    }
+    .error-msg {
+      background: #f8d7da;
+      color: #721c24;
+      padding: 15px;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 class="mb-4">
+      <i class="fas fa-chart-line"></i> News Analytics
+    </h1>
+
+    <!-- Summary Stats -->
+    <div class="row" id="summary-stats">
+      <div class="col-md-4">
+        <div class="stat-card text-center">
+          <div class="stat-number" id="total-clicks">-</div>
+          <div class="stat-label">Total Clicks</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="stat-card text-center">
+          <div class="stat-number" id="unique-articles">-</div>
+          <div class="stat-label">Articles Clicked</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="stat-card text-center">
+          <div class="stat-number" id="top-category">-</div>
+          <div class="stat-label">Top Category</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Category Breakdown -->
+    <div class="stat-card">
+      <h4><i class="fas fa-folder"></i> Clicks by Category</h4>
+      <div id="category-stats" class="mt-3">
+        <div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+      </div>
+    </div>
+
+    <!-- Source Breakdown -->
+    <div class="stat-card">
+      <h4><i class="fas fa-newspaper"></i> Clicks by Source</h4>
+      <div id="source-stats" class="mt-3">
+        <div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+      </div>
+    </div>
+
+    <!-- Top Articles -->
+    <div class="stat-card">
+      <h4><i class="fas fa-fire"></i> Most Clicked Articles</h4>
+      <div id="top-articles" class="mt-3">
+        <div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+      </div>
+    </div>
+
+    <!-- Back Link -->
+    <div class="mt-4 mb-5">
+      <a href="trend_2.html" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back to News
+      </a>
+    </div>
+  </div>
+
+  <!-- Refresh Button -->
+  <button class="btn btn-primary refresh-btn" onclick="loadStats()" title="Refresh">
+    <i class="fas fa-sync-alt"></i>
+  </button>
+
+  <script>
+    // Configuration - change this to match your setup
+    const API_URL = '/api/track.php';  // or 'http://localhost:5000/api/track' for Python
+
+    // Category colors
+    const categoryColors = {
+      'Technology': '#007bff',
+      'Politics': '#dc3545',
+      'World': '#28a745',
+      'Business': '#fd7e14',
+      'Science': '#6f42c1',
+      'Entertainment': '#e83e8c',
+      'Sports': '#20c997',
+      'General': '#6c757d'
+    };
+
+    async function loadStats() {
+      try {
+        const response = await fetch(API_URL);
+        if (!response.ok) throw new Error('API not available');
+
+        const data = await response.json();
+
+        if (!data.success) throw new Error(data.error || 'Failed to load');
+
+        // Update summary
+        document.getElementById('total-clicks').textContent =
+          data.total_clicks.toLocaleString();
+        document.getElementById('unique-articles').textContent =
+          data.unique_articles.toLocaleString();
+
+        // Process articles
+        const articles = Object.values(data.articles);
+
+        // Category stats
+        const categories = {};
+        const sources = {};
+
+        articles.forEach(article => {
+          const cat = article.category || 'Unknown';
+          const src = article.source || 'Unknown';
+
+          categories[cat] = (categories[cat] || 0) + article.count;
+          sources[src] = (sources[src] || 0) + article.count;
+        });
+
+        // Find top category
+        const topCat = Object.entries(categories)
+          .sort((a, b) => b[1] - a[1])[0];
+        document.getElementById('top-category').textContent =
+          topCat ? topCat[0] : '-';
+
+        // Render category stats
+        renderBarStats('category-stats', categories, categoryColors);
+
+        // Render source stats
+        renderBarStats('source-stats', sources);
+
+        // Render top articles
+        renderTopArticles(articles.slice(0, 20));
+
+      } catch (err) {
+        console.error('Error loading stats:', err);
+        document.getElementById('category-stats').innerHTML =
+          '<div class="error-msg"><i class="fas fa-exclamation-triangle"></i> ' +
+          'Could not load analytics. Make sure the tracking server is running.<br>' +
+          '<small>For PHP: Ensure your server supports PHP<br>' +
+          'For Python: Run <code>python3 api/track_server.py</code></small></div>';
+        document.getElementById('source-stats').innerHTML = '';
+        document.getElementById('top-articles').innerHTML = '';
+      }
+    }
+
+    function renderBarStats(elementId, data, colors = {}) {
+      const sorted = Object.entries(data).sort((a, b) => b[1] - a[1]);
+      const max = sorted[0] ? sorted[0][1] : 1;
+
+      const html = sorted.map(([name, count]) => {
+        const percentage = (count / max) * 100;
+        const color = colors[name] || '#6c757d';
+
+        return `
+          <div class="mb-2">
+            <div class="d-flex justify-content-between mb-1">
+              <span>${name}</span>
+              <span class="text-muted">${count.toLocaleString()} clicks</span>
+            </div>
+            <div class="progress" style="height: 8px;">
+              <div class="progress-bar" style="width: ${percentage}%; background-color: ${color};"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById(elementId).innerHTML = html || '<p class="text-muted">No data yet</p>';
+    }
+
+    function renderTopArticles(articles) {
+      if (!articles.length) {
+        document.getElementById('top-articles').innerHTML =
+          '<p class="text-muted">No clicks recorded yet</p>';
+        return;
+      }
+
+      const html = articles.map((article, i) => {
+        const color = categoryColors[article.category] || '#6c757d';
+
+        return `
+          <div class="article-row">
+            <div class="d-flex justify-content-between align-items-start">
+              <div style="flex: 1;">
+                <span class="category-badge mr-2" style="background-color: ${color};">
+                  ${article.category}
+                </span>
+                <strong>#${i + 1}</strong>
+                <a href="${article.url}" target="_blank" class="ml-2">
+                  ${article.title.substring(0, 80)}${article.title.length > 80 ? '...' : ''}
+                </a>
+                <br>
+                <small class="text-muted">
+                  ${article.source} | Last clicked: ${article.last_clicked}
+                </small>
+              </div>
+              <span class="click-count ml-2">${article.count}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('top-articles').innerHTML = html;
+    }
+
+    // Load stats on page load
+    loadStats();
+
+    // Auto-refresh every 30 seconds
+    setInterval(loadStats, 30000);
+  </script>
+</body>
+</html>
