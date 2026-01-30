@@ -9,9 +9,16 @@ import json
 import os
 import re
 from datetime import datetime
+import mysql.connector
 
 rss_url = "https://feeds.washingtonpost.com/rss/business/technology"
 
+database = {
+    'host': 'localhost',
+    'user': '',
+    'password': '',
+    'database': 'news_db'
+}
 
 def get_filename():
     time = datetime.now().strftime("%Y%m%d")
@@ -117,6 +124,21 @@ def update_trend_html(articles):
         f.write(new_html)
 
     print(f"Updated trend.html with {len(articles)} articles")
+
+def setup_db(file='trend.sql'):
+    try:
+        conn = mysql.connector.connect(**database)
+        cursor = conn.cursor()
+
+        with open(file, 'r') as f:
+            sql_script = f.read()
+        print(sql_script)
+        
+    except Exception as e:
+        print(e)
+    finally:
+        cursor.close()
+        conn.close()
 
 if __name__ == "__main__":
     filename = get_filename()
