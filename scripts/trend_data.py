@@ -15,7 +15,7 @@ rss_url = "https://feeds.washingtonpost.com/rss/business/technology"
 
 database = {
     'host': 'localhost',
-    'user': '',
+    'user': 'root',
     'password': '',
     'database': 'news_db'
 }
@@ -126,34 +126,50 @@ def update_trend_html(articles):
     print(f"Updated trend.html with {len(articles)} articles")
 
 def setup_db(file='trend.sql'):
+    server_config = {}
+    for key, value in database.items():
+        if key != 'database':
+            server_config[key] = value
+    
+    conn = None
+    cursor = None
+
     try:
-        conn = mysql.connector.connect(**database)
+        conn = mysql.connector.connect(**server_config)
         cursor = conn.cursor()
 
         with open(file, 'r') as f:
-            sql_script = f.read()
-        print(sql_script)
-        
+            sql_commands = f.read().split(';')
+
+        for command in sql_commands:
+            if command.strip():
+                cursor.execute(command)
+        conn.commit()
+        print("Database and tables created successfully.")
     except Exception as e:
-        print(e)
+        print(f"Error: {e}")
     finally:
-        cursor.close()
-        conn.close()
+        if cursor: cursor.close()
+        if conn: conn.close()
 
 if __name__ == "__main__":
-    filename = get_filename()
-    
-    if not today_news_exists():
-        news = fetch_tech_news()
-        # print(f"fetched {len(news)} tech news articles.")
+    already_ran_today = True
+    if not already_ran_today:
+        filename = get_filename()
+        
+        if not today_news_exists():
+            news = fetch_tech_news()
+            # print(f"fetched {len(news)} tech news articles.")
 
-        save_to_json(news, filename)
-        # print(f"saved to {filename}")
-    
-    articles = load_from_json(filename)
+            save_to_json(news, filename)
+            # print(f"saved to {filename}")
+        
+        articles = load_from_json(filename)
 
-    unique_articles = remove_duplicates(articles)
+        unique_articles = remove_duplicates(articles)
 
-    today_articles = get_today_news(articles)
+        today_articles = get_today_news(articles)
 
-    update_trend_html(unique_articles)
+        update_trend_html(unique_articles)
+
+        setup_db()
