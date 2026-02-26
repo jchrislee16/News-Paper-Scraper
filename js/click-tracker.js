@@ -5,7 +5,7 @@
 
 (function() {
     // Configuration - change this to your API endpoint
-    const TRACK_API = 'http://YOUR_VM_IP:5000/api/track';
+    const TRACK_API = 'http://35.239.49.224:5000/api/track';
 
     // Track click function
     function trackClick(linkElement) {
