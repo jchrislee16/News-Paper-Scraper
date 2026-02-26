@@ -4,90 +4,76 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-News aggregation static website that fetches articles from RSS feeds using Python scripts and displays them on Bootstrap-based HTML pages.
+News aggregation website with a **split architecture**:
+- **This repo (GitHub Pages)** — Frontend only: static HTML/CSS/JS served via GitHub Pages
+- **Google Cloud VM** — Backend: Python scripts (RSS fetching, scraping), Flask API (click tracking), database
 
-## Commands
-
-```bash
-# Setup (first time)
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-
-# Fetch tech news (single-source, updates trend.html)
-python3 scripts/trend_data.py
-
-# Fetch all news (multi-source, updates trend_2.html)
-python3 scripts/trend_display.py
-
-# Fetch TRENDING news by popularity (updates trend_2.html)
-source venv/bin/activate && python3 scripts/trending_scraper.py
-```
-
-No build step required for frontend - static HTML/CSS/JS served directly.
+Users visiting the GitHub Pages site only see frontend code. Server-side scripts, API source, and credentials live exclusively on the VM.
 
 ## Architecture
 
 ### Data Flow
 ```
-RSS Feeds → Python fetcher → JSON cache (dated) → HTML injection → Static pages
+[Google Cloud VM]
+RSS Feeds / Web Scraping → Python fetcher → HTML injection → git push trend.html to GitHub
+                                                                        ↓
+[GitHub Pages]                                                   Static pages served
+                                                                        ↓
+                                                          User clicks tracked via JS
+                                                                        ↓
+                                                          Click data POSTed to VM Flask API
 ```
 
-### Key Components
+### Article Update Flow (VM → GitHub)
+The VM periodically:
+1. Runs `trend_data.py` (fetches RSS, generates HTML cards, updates `trend.html`)
+2. `git commit && git push` the updated HTML to this repo
+3. GitHub Pages auto-deploys the change
 
-**Python Scripts (`scripts/`):**
-- `trend_data.py` - Fetches from 6 tech RSS sources, generates cards for `trend.html`
-- `trend_display.py` - Fetches from 9 sources (tech + general), generates cards for `trend_2.html`
-- `trending_scraper.py` - Scrapes "Most Read" sections from BBC, Guardian, NPR + Reddit/HN trending (updates `trend_2.html`)
+The VM needs a clone of this repo with push access (via SSH key or GitHub token).
 
-All scripts:
-1. Check for existing dated JSON cache (`[type]_YYYYMMDD.json`)
-2. Skip fetch if today's cache exists
-3. Use `feedparser` to parse RSS feeds
-4. Deduplicate articles by URL
-5. Inject generated HTML cards into pages using regex replacement on `id="tech-news-container"`
+### Frontend (this repo)
+- `index.html` — Home page
+- `trend.html` — Tech news (updated by VM)
+- `trend_2.html` — All sources (updated by VM)
+- `analytics.html` — Click tracking dashboard (reads from VM API)
+- `about.html`, `categories.html` — Static pages
+- `js/click-tracker.js` — Tracks article clicks, POSTs to VM API
+- `js/custom.js`, `js/user-prefs.js` — UI scripts
+- `css/`, `fonts/`, `images/` — Static assets
 
-**Frontend Pages:**
-- `index.html` - Homepage
-- `trend.html` - Tech news (auto-updated by trend_data.py)
-- `trend_2.html` - All sources news (auto-updated by trend_display.py)
-- `about.html`, `categories.html` - Static pages
-
-**Frontend Libraries (local copies):**
-- Bootstrap 4, jQuery 3.4.1, Owl Carousel, Isotope, Font Awesome
-
-### RSS Sources
-Tech: Washington Post Tech, Ars Technica, TechCrunch, Wired, The Verge, MIT Tech Review
-General: BBC World, NPR, Bloomberg Tech
-
-### Trending Sources (scraped)
-- BBC Most Read (homepage widget)
-- The Guardian Most Viewed
-- NPR Top Stories
-- Hacker News (top stories via Firebase API)
-- Reddit r/news, r/worldnews, r/technology (JSON endpoints)
-
-## Click Tracking
-
-Track which articles users click on:
-
-```bash
-# Start tracking server (Python)
-source venv/bin/activate && python3 api/track_server.py
-
-# Or use PHP (if server supports it)
-# API endpoint: /api/track.php
-```
-
-- `analytics.html` - Dashboard showing click stats by category/source
-- `js/click-tracker.js` - Frontend tracking script (auto-loaded)
-- `api/track_server.py` - Python Flask tracking API
-- `api/track.php` - PHP tracking API alternative
-- `api/clicks.json` - Click data storage
+### Backend (on VM, not in this repo)
+Stored separately at `~/News-Paper-Scraper-Backend/`:
+- `scripts/trend_data.py` — Fetches Washington Post Tech RSS, generates cards for `trend.html`
+- `scripts/trend_display.py` — Multi-source fetcher (9 RSS feeds)
+- `scripts/trending_scraper.py` — Advanced scraper with category system (7 categories)
+- `api/track_server.py` — Flask API with CORS for click tracking
+- `api/clicks.json` — Click data storage
+- `requirements.txt` — Python dependencies
 
 ## Important Patterns
 
-- Date-stamped JSON caching prevents redundant fetches
-- HTML injection uses regex to replace content within `<div id="tech-news-container">` blocks
-- Article cards use Bootstrap grid classes: `col-md-6 col-lg-4`
-- Click tracking uses `data-*` attributes on links with class `track-click`
+### API Endpoint Configuration
+Frontend JS files reference the VM API at `http://YOUR_VM_IP:5000/api/track`. Replace `YOUR_VM_IP` with the actual VM external IP:
+- `js/click-tracker.js` line 8
+- `analytics.html` line 138
+
+### HTML Injection via Regex (VM-side)
+Scripts on the VM use this pattern to inject article cards:
+```python
+pattern = r'(<div class="row" id="tech-news-container">).*?(</div>\s*</div>\s*</section>)'
+new_html = re.sub(pattern, replacement, html_content, flags=re.DOTALL)
+```
+
+### Article Card HTML Structure
+Cards use Bootstrap grid (`col-md-6 col-lg-4`) with badge, title, truncated summary, date, and "Read More" link. Tracked links need:
+```html
+<a href="{url}" class="track-click" data-title="{title}" data-source="{source}" data-category="{category}">
+```
+
+### Category System
+7 categories with color codes: Technology (#007bff), Politics (#dc3545), World (#28a745), Business (#fd7e14), Science (#6f42c1), Entertainment (#e83e8c), Sports (#20c997).
+
+## Dependencies
+
+Frontend only (all loaded locally or via CDN): Bootstrap 4, jQuery 3.4.1, Owl Carousel, Font Awesome 5, Isotope

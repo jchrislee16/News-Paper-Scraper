@@ -9,5 +9,15 @@ trending_news_*.json
 tech_news_*.json
 all_news_*.json
 
+# Backend (lives on VM, not in frontend repo)
+scripts/
+api/
+old data/
+requirements.txt
+*.sql
+
+# Credentials
+gcloud-shared-key
+
 # OS
 .DS_Store

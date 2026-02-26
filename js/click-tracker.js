@@ -5,7 +5,7 @@
 
 (function() {
     // Configuration - change this to your API endpoint
-    const TRACK_API = '/api/track.php';  // or 'http://localhost:5000/api/track' for Python server
+    const TRACK_API = 'http://YOUR_VM_IP:5000/api/track';
 
     // Track click function
     function trackClick(linkElement) {
