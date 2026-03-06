@@ -3,7 +3,7 @@
  * Tracks which articles are clicked and sends data to tracking API
  */
 
-(function() {
+ (function() {
     // Configuration - change this to your API endpoint
     const TRACK_API = 'http://35.239.49.224:5000/api/track';
 
@@ -43,6 +43,10 @@
 
         console.debug('Click tracking initialized for',
             document.querySelectorAll('a.track-click').length, 'links');
+
+        // Console output on page load
+        console.log('✅ Trend.html page load complete on server');
+
     }
 
     // Initialize when DOM is ready
@@ -52,3 +56,41 @@
         initTracking();
     }
 })();
+
+// Local click tracking
+(function() {
+    function localTrackClick(link) {
+        const url = link.href;
+        let counts = JSON.parse(localStorage.getItem('clickCounts') || '{}');
+        counts[url] = (counts[url] || 0) + 1;
+        localStorage.setItem('clickCounts', JSON.stringify(counts));
+        console.log(`Clicked: ${link.textContent.trim()} | Total: ${counts[url]}`);
+    }
+
+    function initLocalTracking() {
+        document.querySelectorAll('a.track-click').forEach(link => {
+            link.addEventListener('click', function(e) {
+                localTrackClick(this);
+            });
+        });
+
+        console.debug('Local click tracking initialized for',
+            document.querySelectorAll('a.track-click').length, 'links');
+        
+        // Console output on page load
+        console.log('✅ Trend.html page load complete on local');
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initLocalTracking);
+    } else {
+        initLocalTracking();
+    }
+
+    window.getClickCounts = function() {
+        return JSON.parse(localStorage.getItem('clickCounts') || '{}');
+    };
+})();
+
+// run the command in the local console
+// window.getClickCounts()
