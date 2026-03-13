@@ -455,9 +455,35 @@
   <!-- user preferences (localStorage) -->
   <script src="js/user-prefs.js"></script>
   <!-- Google Map -->
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCh39n5U-4IoWpsVGUHWdqB6puEkhRLdmI&callback=myMap">
+  <!-- <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCh39n5U-4IoWpsVGUHWdqB6puEkhRLdmI&callback=myMap"> -->
   </script>
   <!-- End Google Map -->
+
+  <!-- test connection -->
+  <script>
+    const TRACK_API = 'http://35.239.49.224:5000/api/track';
+
+    async function trackPageLoad() {
+        try {
+            const response = await fetch(TRACK_API, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    url: window.location.href,
+                    title: document.title,
+                    category: 'Trend',
+                    source: 'Web'
+                })
+            });
+            const result = await response.json();
+            console.log("Tracking Success:", result);
+        } catch (error) {
+            console.error("Tracking Failed:", error);
+        }
+    }
+
+    window.onload = trackPageLoad;
+  </script>
 
 </body>
 
