@@ -54,9 +54,11 @@ Stored separately at `~/News-Paper-Scraper-Backend/`:
 ## Important Patterns
 
 ### API Endpoint Configuration
-Frontend JS files reference the VM API at `http://YOUR_VM_IP:5000/api/track`. Replace `YOUR_VM_IP` with the actual VM external IP:
+Frontend JS files reference the VM API at `http://35.239.49.224:5000/api/track`:
 - `js/click-tracker.js` line 8
 - `analytics.html` line 138
+
+If the VM IP changes, update both locations.
 
 ### HTML Injection via Regex (VM-side)
 Scripts on the VM use this pattern to inject article cards:
@@ -73,6 +75,18 @@ Cards use Bootstrap grid (`col-md-6 col-lg-4`) with badge, title, truncated summ
 
 ### Category System
 7 categories with color codes: Technology (#007bff), Politics (#dc3545), World (#28a745), Business (#fd7e14), Science (#6f42c1), Entertainment (#e83e8c), Sports (#20c997).
+
+### User Preferences System (`js/user-prefs.js`)
+Client-side personalization via localStorage. Maps display category names to normalized DB topic keys:
+- Display names (Technology, Business, World, etc.) → DB keys (tech, economy, politics, etc.)
+- Tracks `topicScores` and `sourceScores` per user; reorders article cards after 3+ clicks
+- Adds filter bar (All/Unread/Saved), bookmark buttons, "For You" badges, and read indicators
+
+### SCSS
+`css/style.scss` compiles to `css/style.css`. Key variables: `$primary1: #ffbe33`, `$primary2: #222831`. Fonts: Open Sans (main), Dancing Script (accent).
+
+## .gitignore Notes
+Backend files (`scripts/`, `api/`, `requirements.txt`, `*.sql`) are gitignored — they live on the VM only. JSON cache files (`*_news_*.json`) and `venv/` are also excluded.
 
 ## Dependencies
 
