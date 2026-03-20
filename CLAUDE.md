@@ -54,7 +54,7 @@ Stored separately at `~/News-Paper-Scraper-Backend/`:
 ## Important Patterns
 
 ### API Endpoint Configuration
-Frontend JS files reference the VM API at `http://35.239.49.224:5000/api/track`:
+Frontend JS files reference the VM API at `http://20.151.118.114:5000/api/track`:
 - `js/click-tracker.js` line 8
 - `analytics.html` line 138
 
