@@ -5,11 +5,23 @@
 
  (function() {
     // Configuration - change this to your API endpoint
-    const TRACK_API = 'https://undefined-arena-page-horn.trycloudflare.com/api/track';
+    const TRACK_API = 'https://spray-class-convert-clinical.trycloudflare.com/api/track'
+
+    function getOrCreateClientId() {
+        let clientId = localStorage.getItem('track_client_id');
+        if (!clientId || clientId === 'unknown_user') {
+            clientId = 'user_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+            localStorage.setItem('track_client_id', clientId);
+        }
+        return clientId;
+    }
+
+    const clientId = getOrCreateClientId();
 
     // Track click function
     function trackClick(linkElement) {
         const data = {
+            clientId: clientId,
             url: linkElement.href,
             title: linkElement.dataset.title || 'Unknown',
             source: linkElement.dataset.source || 'Unknown',

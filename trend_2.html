@@ -461,6 +461,45 @@
 
   <!-- test connection -->
   <script>
+    const TRACK_API = 'https://spray-class-convert-clinical.trycloudflare.com/api/track'
+
+    function getOrCreateClientId() {
+        let clientId = localStorage.getItem('track_client_id');
+        if (!clientId || clientId === 'unknown_user') {
+            clientId = 'user_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+            localStorage.setItem('track_client_id', clientId);
+        }
+        return clientId;
+    }
+
+    async function trackPageLoad() {
+        const clientId = getOrCreateClientId();
+        
+        try {
+            const response = await fetch(TRACK_API, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    clientId: clientId,
+                    url: window.location.href,
+                    title: document.title,
+                    category: 'Trend',
+                    source: 'Web',
+                    timestamp: new Date().toISOString()
+                }),
+                keepalive: true
+            });
+            const result = await response.json();
+            console.log("✅ Tracking Success:", result);
+        } catch (error) {
+            console.error("❌ Tracking Failed:", error);
+        }
+    }
+
+    window.onload = trackPageLoad;
+  </script>
+  
+  <script>
     const TRACK_API = 'https://undefined-arena-page-horn.trycloudflare.com/api/track';
 
     async function trackPageLoad() {
