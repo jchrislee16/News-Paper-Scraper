@@ -5,7 +5,7 @@
 
  (function() {
     // Configuration - change this to your API endpoint
-    const TRACK_API = 'https://spray-class-convert-clinical.trycloudflare.com/api/track'
+    const TRACK_API = 'https://peripherals-benz-looking-rivers.trycloudflare.com/api/track'
 
     function getOrCreateClientId() {
         let clientId = localStorage.getItem('track_client_id');
