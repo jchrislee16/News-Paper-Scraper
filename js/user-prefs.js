@@ -239,6 +239,7 @@
   function createFilterBar() {
     var container = document.getElementById('tech-news-container');
     if (!container) return;
+    if (document.getElementById('prefs-filter-bar')) return;
 
     var prefs = loadPrefs();
     var topTopic = getTopTopic();
@@ -422,6 +423,13 @@
       'Topic scores:', prefs.topicScores,
       'Source scores:', prefs.sourceScores);
   }
+
+  // Expose reinit for dynamic content (news-feed.js calls this after rendering)
+  window.reinitUserPrefs = function () {
+    // Reset decorated flags so cards get re-decorated
+    getAllCards().forEach(function (card) { delete card.dataset.prefsDecorated; });
+    init();
+  };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
