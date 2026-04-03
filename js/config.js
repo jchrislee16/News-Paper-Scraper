@@ -7,7 +7,7 @@
  * To update: change the URL below and git push, or let the VM script handle it.
  */
 (function () {
-  window.NEWS_API_BASE = 'https://undefined-arena-page-horn.trycloudflare.com';
+  window.NEWS_API_BASE = 'https://repository-substantially-hockey-algebra.trycloudflare.com';
 
   // --- Retry/reconnect logic ---
   var MAX_RETRIES = 5;
