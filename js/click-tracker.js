@@ -7,6 +7,7 @@
     function localTrackClick(link) {
         console.log("test");
         const url = link.href;
+        console.log(url);
 
         const cardBody = link.closest('.card-body');
         const title = link.dataset.title || (cardBody?.querySelector('h5.card-title')?.innerText.trim() || 'No Title');
