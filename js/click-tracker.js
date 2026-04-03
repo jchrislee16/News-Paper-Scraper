@@ -62,7 +62,7 @@
         console.log("test 2");
         document.querySelectorAll('a.track-click').forEach(link => {
             link.addEventListener('click', function() {
-                localTrackClick(this);
+                trackClick(this);
             });
         });
 
