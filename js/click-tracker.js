@@ -4,7 +4,7 @@
  * Main preference tracking is handled by user-prefs.js.
  */
 (function() {
-    function localTrackClick(link) {
+    function trackClick(link) {
         console.log("test");
         const url = link.href;
         console.log(url);
