@@ -4,7 +4,6 @@
  * Renders article cards into #tech-news-container.
  */
 (function () {
-  var API_BASE = 'https://undefined-arena-page-horn.trycloudflare.com';
   var STORAGE_KEY = 'newsUserPrefs';
   var ARTICLES_CACHE_KEY = 'cachedArticles';
 
@@ -154,13 +153,12 @@
       limit: 50
     };
 
-    fetch(API_BASE + '/api/recommend', {
+    window.apiFetch('/api/recommend', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     })
     .then(function (res) {
-      if (!res.ok) throw new Error('API returned ' + res.status);
       return res.json();
     })
     .then(function (data) {

@@ -54,11 +54,12 @@ Stored separately at `~/News-Paper-Scraper-Backend/`:
 ## Important Patterns
 
 ### API Endpoint Configuration
-Frontend JS files reference the VM API at `http://20.151.118.114:5000/api/track`:
-- `js/click-tracker.js` line 8
-- `analytics.html` line 138
+All API URLs are centralized in `js/config.js` which sets `window.NEWS_API_BASE`.
+- `js/news-feed.js` uses `window.apiFetch()` (retry + reconnect wrapper)
+- `analytics.html` reads `window.NEWS_API_BASE` for the track API URL
 
-If the VM IP changes, update both locations.
+If the tunnel URL changes, update only `js/config.js`. The VM can auto-update this file and git push.
+`config.js` also includes retry logic: on API failure it re-fetches its own raw source from GitHub to detect URL changes, shows a reconnecting overlay, and retries up to 5 times.
 
 ### HTML Injection via Regex (VM-side)
 Scripts on the VM use this pattern to inject article cards:
