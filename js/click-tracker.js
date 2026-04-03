@@ -5,6 +5,7 @@
  */
 (function() {
     function localTrackClick(link) {
+        console.log("test");
         const url = link.href;
 
         const cardBody = link.closest('.card-body');
@@ -57,6 +58,7 @@
     }
 
     function initLocalTracking() {
+        console.log("test 2");
         document.querySelectorAll('a.track-click').forEach(link => {
             link.addEventListener('click', function() {
                 localTrackClick(this);
