@@ -1,10 +1,6 @@
-/**
- * Local Click Tracking & Azure Server Storage
- */
- (function() {
-    const TRACK_API = 'http://20.151.118.114:5000/api/track'
+(function() {
+    const TRACK_API = 'http://20.151.118.114:5000/api/track';
 
-    // 1. Client ID Management
     function getOrCreateClientId() {
         let clientId = localStorage.getItem('track_client_id');
         if (!clientId || clientId === 'unknown_user') {
@@ -16,11 +12,9 @@
 
     const clientId = getOrCreateClientId();
 
-    // 2. Main Tracking Function
     function trackClick(link) {
-        console.log("test");
+        console.log("test"); 
         const url = link.href;
-        console.log(url);
 
         const cardBody = link.closest('.card-body');
         const title = link.dataset.title || (cardBody?.querySelector('h5.card-title')?.innerText.trim() || 'No Title');
@@ -47,7 +41,6 @@
 
         const timestamp = new Date().toISOString();
 
-        // --- LocalStorage logic ---
         let counts = {};
         try {
             counts = JSON.parse(localStorage.getItem('clickCounts') || '{}');
@@ -74,7 +67,6 @@
 
         console.log(`Clicked: ${title} | Total clicks: ${counts[url].clicks}`);
 
-        // --- Azure Server Send ---
         const payload = {
             clientId: clientId, 
             url: url,
@@ -91,17 +83,15 @@
         }).catch(err => console.debug('Azure send failed:', err));
     }
 
-    // 3. Initialize Tracking
     function initLocalTracking() {
-        console.log("test 2");
-        document.querySelectorAll('a.track-click').forEach(link => {
-            link.addEventListener('click', function() {
-                trackClick(this);
-            });
+        // Using Event Delegation to handle dynamically loaded content
+        document.addEventListener('click', function(event) {
+            const link = event.target.closest('a.track-click');
+            if (link) {
+                trackClick(link);
+            }
         });
-
-        console.debug('Tracking initialized for', 
-            document.querySelectorAll('a.track-click').length, 'links');
+        console.log("Global tracking initialized");
     }
 
     if (document.readyState === 'loading') {
