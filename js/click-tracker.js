@@ -1,9 +1,10 @@
 /**
- * Click Tracking for News Articles
- * Tracks click counts in localStorage and sends data to tracking API.
+ * Local Click Tracking for News Articles
+ * Tracks click counts and client identification in localStorage for debugging.
  */
  (function() {
 
+    // 1. Client ID Management
     function getOrCreateClientId() {
         let clientId = localStorage.getItem('track_client_id');
         if (!clientId || clientId === 'unknown_user') {
@@ -14,8 +15,8 @@
     }
 
     const clientId = getOrCreateClientId();
-    const TRACK_API = 'YOUR_API_URL_HERE';
 
+    // 2. Main Tracking Function
     function trackClick(link) {
         console.log("test");
         const url = link.href;
@@ -31,9 +32,11 @@
         if (cardBody) {
             const pTags = cardBody.querySelectorAll('p');
             for (let p of pTags) {
+                // Extract date from text
                 if (/\d{2,4}.*\d{2,4}/.test(p.innerText)) {
                     date = p.innerText.replace(/Score:.*/, '').trim();
                 }
+                // Extract Upvotes and Comments count
                 if (p.innerText.includes('Upvotes') && p.innerText.includes('Comments')) {
                     const match = p.innerText.match(/Upvotes:\s*([\d,]+)\s*\|\s*Comments:\s*([\d,]+)/);
                     if (match) {
@@ -46,7 +49,7 @@
 
         const timestamp = new Date().toISOString();
 
-        // Local storage tracking
+        // Manage localStorage data
         let counts = {};
         try {
             counts = JSON.parse(localStorage.getItem('clickCounts') || '{}');
@@ -67,35 +70,18 @@
             };
         }
 
+        // Update tracking info
         counts[url].clicks += 1;
-        counts[url].history.push({ timestamp });
-        localStorage.setItem('clickCounts', JSON.stringify(counts));
-
-        // API tracking data
-        const data = {
-            clientId: clientId,
-            url: url,
-            title: title,
-            source: link.dataset.source || 'Unknown',
-            category: link.dataset.category || 'Unknown',
-            timestamp: timestamp
-        };
-
-        // Send tracking data (fire and forget)
-        fetch(TRACK_API, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(data),
-            keepalive: true
-        }).catch(function(err) {
-            console.debug('Track failed:', err);
+        counts[url].history.push({ 
+            timestamp: timestamp,
+            clientId: clientId 
         });
 
-        console.log(`Clicked: ${title} | Total clicks: ${counts[url].clicks}`);
+        localStorage.setItem('clickCounts', JSON.stringify(counts));
+        console.log(`Clicked: ${title} | Total clicks: ${counts[url].clicks} | Client: ${clientId}`);
     }
 
+    // 3. Initialize Tracking
     function initTracking() {
         console.log("test 2");
         const links = document.querySelectorAll('a.track-click');
@@ -106,17 +92,20 @@
             });
         });
 
-        console.debug('Click tracking initialized for', links.length, 'links');
+        console.debug('Local click tracking initialized for', links.length, 'links');
         console.log('✅ Trend.html page load complete on server');
     }
 
+    // Check DOM readiness
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initTracking);
     } else {
         initTracking();
     }
 
+    // Public helper to check counts in console
     window.getClickCounts = function() {
         return JSON.parse(localStorage.getItem('clickCounts') || '{}');
     };
+
 })();
