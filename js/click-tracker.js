@@ -1,8 +1,8 @@
 /**
- * Local Click Tracking for News Articles
- * Tracks click counts and client identification in localStorage for debugging.
+ * Local Click Tracking & Azure Server Storage
  */
  (function() {
+    const TRACK_API = 'http://20.151.118.114:5000/api/track'
 
     // 1. Client ID Management
     function getOrCreateClientId() {
@@ -32,16 +32,14 @@
         if (cardBody) {
             const pTags = cardBody.querySelectorAll('p');
             for (let p of pTags) {
-                // Extract date from text
                 if (/\d{2,4}.*\d{2,4}/.test(p.innerText)) {
-                    date = p.innerText.replace(/Score:.*/, '').trim();
+                    date = p.innerText.replace(/Score:.*/,'').trim();
                 }
-                // Extract Upvotes and Comments count
                 if (p.innerText.includes('Upvotes') && p.innerText.includes('Comments')) {
                     const match = p.innerText.match(/Upvotes:\s*([\d,]+)\s*\|\s*Comments:\s*([\d,]+)/);
                     if (match) {
-                        upvotes = parseInt(match[1].replace(/,/g, ''), 10);
-                        comments = parseInt(match[2].replace(/,/g, ''), 10);
+                        upvotes = parseInt(match[1].replace(/,/g,''), 10);
+                        comments = parseInt(match[2].replace(/,/g,''), 10);
                     }
                 }
             }
@@ -49,7 +47,7 @@
 
         const timestamp = new Date().toISOString();
 
-        // Manage localStorage data
+        // --- LocalStorage logic ---
         let counts = {};
         try {
             counts = JSON.parse(localStorage.getItem('clickCounts') || '{}');
@@ -70,42 +68,49 @@
             };
         }
 
-        // Update tracking info
         counts[url].clicks += 1;
-        counts[url].history.push({ 
-            timestamp: timestamp,
-            clientId: clientId 
-        });
-
+        counts[url].history.push({ timestamp });
         localStorage.setItem('clickCounts', JSON.stringify(counts));
-        console.log(`Clicked: ${title} | Total clicks: ${counts[url].clicks} | Client: ${clientId}`);
+
+        console.log(`Clicked: ${title} | Total clicks: ${counts[url].clicks}`);
+
+        // --- Azure Server Send ---
+        const payload = {
+            clientId: clientId, 
+            url: url,
+            title: title,
+            source: link.dataset.source || 'Unknown',
+            category: link.dataset.category || 'Unknown'
+        };
+
+        fetch(TRACK_API, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            keepalive: true 
+        }).catch(err => console.debug('Azure send failed:', err));
     }
 
     // 3. Initialize Tracking
-    function initTracking() {
+    function initLocalTracking() {
         console.log("test 2");
-        const links = document.querySelectorAll('a.track-click');
-        
-        links.forEach(function(link) {
+        document.querySelectorAll('a.track-click').forEach(link => {
             link.addEventListener('click', function() {
                 trackClick(this);
             });
         });
 
-        console.debug('Local click tracking initialized for', links.length, 'links');
-        console.log('✅ Trend.html page load complete on server');
+        console.debug('Tracking initialized for', 
+            document.querySelectorAll('a.track-click').length, 'links');
     }
 
-    // Check DOM readiness
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initTracking);
+        document.addEventListener('DOMContentLoaded', initLocalTracking);
     } else {
-        initTracking();
+        initLocalTracking();
     }
 
-    // Public helper to check counts in console
     window.getClickCounts = function() {
         return JSON.parse(localStorage.getItem('clickCounts') || '{}');
     };
-
 })();
