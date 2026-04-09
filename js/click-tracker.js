@@ -5,6 +5,7 @@
  */
 (function() {
     function localTrackClick(link) {
+        console.log("clicked");
         const url = link.href;
 
         const cardBody = link.closest('.card-body');
