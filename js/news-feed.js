@@ -115,6 +115,11 @@
       localStorage.setItem(ARTICLES_CACHE_KEY, JSON.stringify(data));
     } catch (e) {}
 
+    // Re-init click tracking for dynamically rendered cards
+    if (typeof window.reinitClickTracking === 'function') {
+      setTimeout(window.reinitClickTracking, 50);
+    }
+
     // Re-init user prefs (bookmarks, read status, For You badges)
     if (typeof window.reinitUserPrefs === 'function') {
       setTimeout(window.reinitUserPrefs, 100);

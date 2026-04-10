@@ -77,4 +77,7 @@
     window.getClickCounts = function() {
         return JSON.parse(localStorage.getItem('clickCounts') || '{}');
     };
+
+    // Expose reinit for dynamic content (news-feed.js calls this after rendering)
+    window.reinitClickTracking = initLocalTracking;
 })();
