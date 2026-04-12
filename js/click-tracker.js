@@ -55,6 +55,7 @@
 
         localStorage.setItem('clickCounts', JSON.stringify(counts));
         console.log(`Clicked: ${title} | Total clicks: ${counts[url].clicks}`);
+        console.log(counts);
     }
 
     function initLocalTracking() {
