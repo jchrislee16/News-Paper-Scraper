@@ -57,10 +57,10 @@
         console.log(`Clicked: ${title} | Total clicks: ${counts[url].clicks}`);
         console.log(counts);
 
-        const prefs = JSON.parse(localStorage.getItem('newsUserPrefs'));
-        const topicScores = prefs.topicScores;
+        // const prefs = JSON.parse(localStorage.getItem('newsUserPrefs'));
+        // const topicScores = prefs.topicScores;
         console.log("---------");
-        console.log(topicScores);
+        // console.log(topicScores);
     }
 
     function initLocalTracking() {
