@@ -57,8 +57,9 @@
         console.log(`Clicked: ${title} | Total clicks: ${counts[url].clicks}`);
         console.log(counts);
 
-        const prefs = JSON.parse(localStorage.getItem('prefs'));
+        const prefs = JSON.parse(localStorage.getItem('newsUserPrefs'));
         const topicScores = prefs.topicScores;
+        console.log("---------");
         console.log(topicScores);
     }
 
