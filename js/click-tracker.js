@@ -53,14 +53,27 @@
         counts[url].clicks += 1;
         counts[url].history.push({ timestamp });
 
+        const newsCount = Object.keys(counts).length;
+
+        const limit = 3;
+        if (newsCount > limit) {
+            const oldData = newsCount - limit;
+        
+            for (let i = 0; i < oldData; i++) {
+                delete counts[Object.keys(counts)[i]];
+            }
+        }
+
         localStorage.setItem('clickCounts', JSON.stringify(counts));
         console.log(`Clicked: ${title} | Total clicks: ${counts[url].clicks}`);
         console.log(counts);
 
-        // const prefs = JSON.parse(localStorage.getItem('newsUserPrefs'));
-        // const topicScores = prefs.topicScores;
-        console.log("---------");
-        // console.log(topicScores);
+        const prefs = JSON.parse(localStorage.getItem('newsUserPrefs'));
+        const topicScores = prefs.topicScores;
+        console.log(topicScores);
+        // for (let key in topicScores) {
+        //     console.log(key + " " + topicScores[key]);
+        // }
     }
 
     function initLocalTracking() {
