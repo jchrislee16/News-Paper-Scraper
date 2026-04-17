@@ -53,6 +53,7 @@
         '<div class="card-body">' +
           '<span class="badge" style="background-color: ' + rankColor + '; color: #fff; padding: 3px 8px; border-radius: 50%; font-size: 11px; margin-right: 5px;">#' + (rank + 1) + '</span>' +
           '<span class="badge" style="background-color: #ffbe33; color: #fff; padding: 5px 10px; border-radius: 4px; font-size: 12px;">' + source + '</span>' +
+          '<span class="badge" style="background-color: ' + catColor + '; color: #fff; padding: 5px 10px; border-radius: 4px; font-size: 12px; margin-left: 5px;">' + (article.category || 'General') + '</span>' +
           '<h5 class="card-title mt-2" style="font-weight: bold; color: #222;">' + title + '</h5>' +
           '<p class="card-text" style="color: #666; font-size: 14px;">' + summary + '</p>' +
           '<p style="color: #999; font-size: 12px;"><i class="fa fa-calendar"></i> ' + published + ' ' + scoreText + '</p>' +
