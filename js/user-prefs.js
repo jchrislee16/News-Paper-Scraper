@@ -25,25 +25,28 @@
     'Technology': 'tech',
     'Tech':       'tech',
     'Politics':   'politics',
-    'World':      'politics',    // closest DB topic
-    'Business':   'economy',
+    'World':      'world',
+    'Business':   'business',
     'Economy':    'economy',
     'Science':    'science',
     'Health':     'health',
     'Sports':     'sports',
     'Entertainment': 'entertainment',
-    'General':    'tech'         // fallback for uncategorized
+    'General':    'general'
   };
 
   // Reverse map: DB topic key → nice display name for the UI
   var TOPIC_DISPLAY = {
     'tech':          'Technology',
-    'economy':       'Economy',
     'politics':      'Politics',
+    'world':         'World',
+    'business':      'Business',
+    'economy':       'Economy',
+    'science':       'Science',
     'health':        'Health',
     'sports':        'Sports',
     'entertainment': 'Entertainment',
-    'science':       'Science'
+    'general':       'General'
   };
 
   function normalizeTopic(displayName) {
