@@ -15,6 +15,9 @@
     'Science': '#6f42c1',
     'Entertainment': '#e83e8c',
     'Sports': '#20c997',
+    'Health': '#28a745',
+    'Environment': '#17a2b8',
+    'Education': '#6610f2',
     'General': '#6c757d'
   };
 
@@ -156,7 +159,7 @@
       topicScores: prefs.topicScores || {},
       sourceScores: prefs.sourceScores || {},
       readArticles: prefs.readArticles || [],
-      limit: 50
+      limit: 100
     };
 
     window.apiFetch('/api/recommend', {

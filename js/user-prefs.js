@@ -32,6 +32,8 @@
     'Health':     'health',
     'Sports':     'sports',
     'Entertainment': 'entertainment',
+    'Environment': 'environment',
+    'Education':  'education',
     'General':    'general'
   };
 
@@ -46,6 +48,8 @@
     'health':        'Health',
     'sports':        'Sports',
     'entertainment': 'Entertainment',
+    'environment':   'Environment',
+    'education':     'Education',
     'general':       'General'
   };
 
