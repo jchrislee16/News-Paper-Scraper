@@ -42,6 +42,7 @@
             counts[url] = {
                 url: url,
                 title: title,
+                category: category,
                 date: date,
                 upvotes: upvotes || 0,
                 comments: comments || 0,
@@ -74,6 +75,8 @@
         // for (let key in topicScores) {
         //     console.log(key + " " + topicScores[key]);
         // }
+
+        console.log(JSON.stringify(getClickCounts(), null, 2));
     }
 
     function initLocalTracking() {
