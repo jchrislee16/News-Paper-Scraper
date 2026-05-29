@@ -71,7 +71,8 @@
             counts[url] = {
                 url: url,
                 title: title,
-                category: category, 
+                category: category,
+                source: source,
                 date: date,
                 upvotes: upvotes || 0,
                 comments: comments || 0,
@@ -83,7 +84,7 @@
         }
 
         counts[url].clicks += 1;
-        counts[url].history.push({ timestamp });
+        counts[url].history.push({ timestamp, category });
 
         const newsCount = Object.keys(counts).length;
         const limit = 3;
