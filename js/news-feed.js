@@ -31,6 +31,28 @@
     return { readArticles: [], savedArticles: [], topicScores: {}, sourceScores: {} };
   }
 
+  // The "soup ingredients": the articles the user actually clicked, with their
+  // titles. click-tracker.js stores these in localStorage.clickCounts keyed by url.
+  // The backend turns these titles into a TF-IDF vector ("soup") and ranks
+  // articles by similarity to it. Sent fresh on every load — nothing persisted
+  // server-side.
+  function loadClicks() {
+    try {
+      var counts = JSON.parse(localStorage.getItem('clickCounts') || '{}');
+      return Object.keys(counts).map(function (url) {
+        var c = counts[url] || {};
+        return {
+          title: c.title || '',
+          category: c.category || '',
+          source: c.source || '',
+          weight: c.clicks || 1
+        };
+      }).filter(function (c) { return c.title; });
+    } catch (e) {
+      return [];
+    }
+  }
+
   function renderCard(article, rank) {
     var rankColor = rank < 3 ? RANK_COLORS[rank] : '#6c757d';
     var catColor = CATEGORY_COLORS[article.category] || '#6c757d';
@@ -150,6 +172,7 @@
 
     var prefs = loadPrefs();
     var payload = {
+      clicks: loadClicks(),
       topicScores: prefs.topicScores || {},
       sourceScores: prefs.sourceScores || {},
       readArticles: prefs.readArticles || [],
