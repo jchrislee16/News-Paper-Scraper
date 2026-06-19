@@ -3,7 +3,7 @@
  * Fetches personalized articles from the backend API based on localStorage preferences.
  * Renders article cards into #tech-news-container.
  */
-(function () {
+ (function () {
   var STORAGE_KEY = 'newsUserPrefs';
   var ARTICLES_CACHE_KEY = 'cachedArticles';
 
@@ -48,7 +48,6 @@
     }
     var scoreText = article.score > 0 ? "<small style='color: #28a745;'>Score: " + article.score.toLocaleString() + "</small>" : '';
 
-    // Escape HTML in title for data attributes
     var safeTitle = title.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
     return '<div class="col-md-6 col-lg-4 mb-4">' +
@@ -95,7 +94,6 @@
       return;
     }
 
-    // Group by category
     var grouped = {};
     articles.forEach(function (a) {
       var cat = a.category || 'General';
@@ -103,7 +101,6 @@
       grouped[cat].push(a);
     });
 
-    // Render in category order from API
     var categories = data.categories || Object.keys(grouped);
     var html = '';
     categories.forEach(function (cat) {
@@ -114,17 +111,14 @@
 
     container.innerHTML = html;
 
-    // Cache for offline use
     try {
       localStorage.setItem(ARTICLES_CACHE_KEY, JSON.stringify(data));
     } catch (e) {}
 
-    // Re-init click tracking for dynamically rendered cards
     if (typeof window.reinitClickTracking === 'function') {
       setTimeout(window.reinitClickTracking, 50);
     }
 
-    // Re-init user prefs (bookmarks, read status, For You badges)
     if (typeof window.reinitUserPrefs === 'function') {
       setTimeout(window.reinitUserPrefs, 100);
     }
@@ -175,7 +169,6 @@
     })
     .catch(function (err) {
       console.error('Failed to fetch articles:', err);
-      // Try cached articles
       try {
         var cached = localStorage.getItem(ARTICLES_CACHE_KEY);
         if (cached) {
@@ -187,7 +180,6 @@
     });
   }
 
-  // Initialize
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', fetchAndRender);
   } else {

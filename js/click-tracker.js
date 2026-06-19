@@ -1,7 +1,8 @@
 /**
  * Local Click Tracking for News Articles
- * Tracks click counts in localStorage for debugging.
- * Main preference tracking is handled by user-prefs.js.
+ * Tracks click counts in localStorage for debugging with a 100-item history limit
+ * and implements a 5% dynamic weight allocation vector logic for user preference.
+ * Main preference tracking is handled by user-prefs.js or this fallback.
  */
  (function() {
     /**
@@ -13,7 +14,6 @@
     function localTrackClick(event, link) {
         console.log("clicked");
         
-        // Prevent immediate link navigation to buy time for localStorage file I/O
         if (event) {
             event.preventDefault();
         }
@@ -31,7 +31,7 @@
         } else if (card) {
             const badges = card.querySelectorAll('.badge');
             if (badges.length >= 3) {
-                category = badges[2].textContent.trim(); // The 3rd badge in news-feed.js layout is always Category
+                category = badges[2].textContent.trim();
             } else if (badges.length > 0) {
                 category = badges[badges.length - 1].textContent.trim();
             }
@@ -71,8 +71,7 @@
             counts[url] = {
                 url: url,
                 title: title,
-                category: category,
-                source: source,
+                category: category, 
                 date: date,
                 upvotes: upvotes || 0,
                 comments: comments || 0,
@@ -84,14 +83,15 @@
         }
 
         counts[url].clicks += 1;
-        counts[url].history.push({ timestamp, category });
+        counts[url].history.push({ timestamp });
 
         const newsCount = Object.keys(counts).length;
-        const limit = 3;
+        const limit = 100;
         if (newsCount > limit) {
+            const keys = Object.keys(counts);
             const oldData = newsCount - limit;
             for (let i = 0; i < oldData; i++) {
-                delete counts[Object.keys(counts)[i]];
+                delete counts[keys[i]];
             }
         }
 
@@ -110,14 +110,36 @@
                 if (prefs.readArticles.indexOf(url) === -1) {
                     prefs.readArticles.push(url);
                 }
+                if (prefs.readArticles.length > 100) {
+                    prefs.readArticles.shift();
+                }
                 
                 let topicKey = category.toLowerCase();
                 if (category === 'Technology' || category === 'Tech') topicKey = 'tech';
-                prefs.topicScores[topicKey] = (prefs.topicScores[topicKey] || 0) + 1;
+
+                let totalTopicScore = Object.values(prefs.topicScores).reduce((a, b) => a + b, 0);
                 
-                if (source) {
-                    prefs.sourceScores[source] = (prefs.sourceScores[source] || 0) + 1;
+                if (totalTopicScore === 0) {
+                    prefs.topicScores[topicKey] = 1.0;
+                } else {
+                    Object.keys(prefs.topicScores).forEach(key => {
+                        prefs.topicScores[key] = (prefs.topicScores[key] / totalTopicScore) * 0.95;
+                    });
+                    prefs.topicScores[topicKey] = (prefs.topicScores[topicKey] || 0) + 0.05;
                 }
+
+                if (source) {
+                    let totalSourceScore = Object.values(prefs.sourceScores).reduce((a, b) => a + b, 0);
+                    if (totalSourceScore === 0) {
+                        prefs.sourceScores[source] = 1.0;
+                    } else {
+                        Object.keys(prefs.sourceScores).forEach(key => {
+                            prefs.sourceScores[key] = (prefs.sourceScores[key] / totalSourceScore) * 0.95;
+                        });
+                        prefs.sourceScores[source] = (prefs.sourceScores[source] || 0) + 0.05;
+                    }
+                }
+
                 localStorage.setItem('newsUserPrefs', JSON.stringify(prefs));
             } catch (e) {
                 console.error("Failed to fallback sync user-prefs", e);
@@ -130,9 +152,6 @@
         }, 100);
     }
 
-    /**
-     * Initializes event listeners for all 'Read More' links
-     */
     function initLocalTracking() {
         document.querySelectorAll('a.track-click').forEach(link => {
             if (!link.dataset.trackerInitialized) {
