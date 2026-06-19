@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 
 News aggregation website with a **split architecture**:
-- **This repo (GitHub Pages)** — Frontend only: static HTML/CSS/JS served via GitHub Pages
+- **This repo (GitHub Pages)** — Frontend only: static HTML/CSS/JS served via GitHub Pages. GitHub repo slug: `jchrislee16/News-Paper-Scraper` (the `main` branch is the deploy branch, and `config.js` re-fetches its own source from `raw.githubusercontent.com/jchrislee16/News-Paper-Scraper/main/js/config.js`).
 - **Cloud VM (Azure)** — Backend: Python scripts (RSS fetching, scraping), Flask API, database
 
 Users visiting the GitHub Pages site only see frontend code. Server-side scripts, API source, and credentials live exclusively on the VM. Do **not** commit backend files, credentials, or `*.pem` keys to this repo.
