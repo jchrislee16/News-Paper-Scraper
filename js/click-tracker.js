@@ -87,7 +87,9 @@
         counts[url].history.push({ timestamp, category });
 
         const newsCount = Object.keys(counts).length;
-        const limit = 3;
+        // Keep the last N clicked articles as "soup ingredients" for the
+        // personalized feed (news-feed.js sends these titles to /api/recommend).
+        const limit = 15;
         if (newsCount > limit) {
             const oldData = newsCount - limit;
             for (let i = 0; i < oldData; i++) {
