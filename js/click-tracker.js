@@ -86,13 +86,7 @@
         counts[url].history.push({ timestamp });
 
         const newsCount = Object.keys(counts).length;
-<<<<<<< HEAD
         const limit = 100;
-=======
-        // Keep the last N clicked articles as "soup ingredients" for the
-        // personalized feed (news-feed.js sends these titles to /api/recommend).
-        const limit = 15;
->>>>>>> 9ddcddf8e9d632efbd5a5f0e5cd8a4dcb174c17d
         if (newsCount > limit) {
             const keys = Object.keys(counts);
             const oldData = newsCount - limit;
@@ -145,6 +139,8 @@
                         prefs.sourceScores[source] = (prefs.sourceScores[source] || 0) + 0.05;
                     }
                 }
+
+                print(prefs);
 
                 localStorage.setItem('newsUserPrefs', JSON.stringify(prefs));
             } catch (e) {
