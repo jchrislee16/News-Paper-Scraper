@@ -139,6 +139,7 @@
                         prefs.sourceScores[source] = (prefs.sourceScores[source] || 0) + 0.05;
                     }
                 }
+                console.log(prefs);
 
                 localStorage.setItem('newsUserPrefs', JSON.stringify(prefs));
             } catch (e) {
