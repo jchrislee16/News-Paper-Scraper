@@ -140,8 +140,6 @@
                     }
                 }
 
-                print(prefs);
-
                 localStorage.setItem('newsUserPrefs', JSON.stringify(prefs));
             } catch (e) {
                 console.error("Failed to fallback sync user-prefs", e);
