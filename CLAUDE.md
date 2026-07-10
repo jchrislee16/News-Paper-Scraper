@@ -36,7 +36,7 @@ RSS Feeds / Web Scraping → Python fetcher → HTML injection → git push tren
 The site has two **different** ways article cards get onto a page. Don't confuse them:
 
 1. **`trend.html` — server-injected static cards.** The VM runs a Python script that regex-replaces the card HTML inside `trend.html`, commits, and pushes. The cards are baked into the file. It loads `custom.js` + `user-prefs.js` only (no API calls).
-2. **`trend_2.html` — client-side dynamic feed.** Loads `config.js` + `click-tracker.js` + `news-feed.js` + `user-prefs.js`. On load, `news-feed.js` POSTs the user's localStorage prefs to `/api/recommend` and renders the returned articles into `#tech-news-container`, grouped by category. No server-side HTML injection here.
+2. **`trend_2.html` — client-side dynamic feed.** Loads `config.js` + `click-tracker.js` + `news-feed.js` + `user-prefs.js`. On load, `news-feed.js` POSTs to `/api/recommend` a payload of `{ clicks, topicScores, sourceScores, readArticles, limit: 100 }` — where `clicks` is the "soup": clicked-article titles pulled from `localStorage.clickCounts` that the backend turns into a TF-IDF vector for ranking. It renders the returned articles into `#tech-news-container`, grouped by category, and caches the full response in `localStorage.cachedArticles` as an offline/API-down fallback. No server-side HTML injection here.
 
 ### Article Update Flow (VM → GitHub, for `trend.html`)
 The VM periodically:
@@ -54,7 +54,7 @@ The VM needs a clone of this repo with push access (SSH key or GitHub token).
 - `about.html`, `categories.html` — Static pages
 - `js/config.js` — Sets `window.NEWS_API_BASE`; provides `window.apiFetch()` retry wrapper
 - `js/news-feed.js` — Dynamic feed renderer (used by `trend_2.html`)
-- `js/click-tracker.js` — **localStorage-only** click logging for debugging. Does NOT call any API.
+- `js/click-tracker.js` — **localStorage-only** click tracking (no API). Logs to `clickCounts` (100-item cap) AND, as a fallback when `window.recordClick` (from `user-prefs.js`) is absent, applies a decay-vector update to `newsUserPrefs`: existing `topicScores`/`sourceScores` are scaled to 95% and the clicked topic/source gets +0.05, keeping each score set normalized.
 - `js/user-prefs.js` — Personalization engine (localStorage)
 - `js/custom.js` — UI scripts
 - `css/`, `fonts/`, `images/` — Static assets
@@ -95,7 +95,7 @@ Cards use Bootstrap grid (`col-md-6 col-lg-4`) with rank badge, source/category 
 ```
 
 ### Category System
-~10 categories, each with a color code (see `CATEGORY_COLORS` in `js/news-feed.js` and the badge classes in `categories.html`): Technology (#007bff), Politics (#dc3545), World (#28a745), Business (#fd7e14), Science (#6f42c1), Entertainment (#e83e8c), Sports (#20c997), Health, Environment, Education, plus a General fallback (#6c757d). Each category is tracked independently.
+~10 categories, each with a color code (see `CATEGORY_COLORS` in `js/news-feed.js` and the badge classes in `categories.html`): Technology (#007bff), Politics (#dc3545), World (#28a745), Business (#fd7e14), Science (#6f42c1), Entertainment (#e83e8c), Sports (#20c997), Health (#28a745, same as World), Environment (#17a2b8), Education (#6610f2), plus a General fallback (#6c757d). Each category is tracked independently.
 
 ### User Preferences System (`js/user-prefs.js`)
 Client-side personalization via localStorage (key `newsUserPrefs`) — **nothing is sent to the server**. Maps display category names → normalized DB topic keys (`TOPIC_MAP` / `TOPIC_DISPLAY`), e.g. Technology→tech, Business→business. Tracks `topicScores` and `sourceScores`, plus `readArticles`/`savedArticles`. Reorders cards after 3+ clicks and adds a filter bar (All/Unread/Saved), bookmark buttons, "For You" badges, and read indicators. Includes migration logic for old `categoryScores`. Expose-and-reinit: `news-feed.js` calls `window.reinitUserPrefs()` and `window.reinitClickTracking()` after rendering dynamic cards.

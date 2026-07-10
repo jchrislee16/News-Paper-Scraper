@@ -12,8 +12,8 @@
  * {
  *   readArticles: ["url1", "url2", ...],
  *   savedArticles: ["url1", "url2", ...],
- *   topicScores: { "tech": 5, "politics": 2, ... },
- *   sourceScores: { "Washington Post": 8, "BBC": 3, ... }
+ *   topicScores: { "tech": 0.6, "politics": 0.4, ... },   // decay vector, sums to 1.0
+ *   sourceScores: { "Washington Post": 0.7, "BBC": 0.3, ... } // decay vector, sums to 1.0
  * }
  */
 (function () {
@@ -110,18 +110,35 @@
       prefs.readArticles.push(url);
     }
 
-    // bump topic score (normalized to DB key)
+    // bump topic score (normalized to DB key) via the shared decay vector
     var topic = normalizeTopic(category);
     if (topic) {
-      prefs.topicScores[topic] = (prefs.topicScores[topic] || 0) + 1;
+      applyDecay(prefs.topicScores, topic);
     }
 
-    // bump source score
+    // bump source score via the shared decay vector
     if (source) {
-      prefs.sourceScores[source] = (prefs.sourceScores[source] || 0) + 1;
+      applyDecay(prefs.sourceScores, source);
     }
 
     savePrefs(prefs);
+  }
+
+  // Recency-weighted decay update, identical to the fallback in click-tracker.js:
+  // scale the whole vector to 95% and add 0.05 to the clicked key, so the set
+  // always renormalizes to sum 1.0 no matter what state it started in. Because
+  // it divides by the current total, a vector left summing to >1 (e.g. from the
+  // old raw-count path) self-heals back to 1.0 on the next click.
+  function applyDecay(scores, key) {
+    var total = Object.keys(scores).reduce(function (a, k) { return a + scores[k]; }, 0);
+    if (total === 0) {
+      scores[key] = 1.0;
+      return;
+    }
+    Object.keys(scores).forEach(function (k) {
+      scores[k] = (scores[k] / total) * 0.95;
+    });
+    scores[key] = (scores[key] || 0) + 0.05;
   }
 
   function isRead(url) {
