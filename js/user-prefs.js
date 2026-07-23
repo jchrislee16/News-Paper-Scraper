@@ -175,18 +175,28 @@
     return top;
   }
 
-  // Calculate a preference score for a card based on the user's history
+  // How much each signal counts toward a card's recommendation score.
+  // Both topicScores and sourceScores are decay vectors that each sum to 1.0,
+  // so they're on the same 0–1 scale and can be blended directly.
+  var TOPIC_WEIGHT = 0.7;   // 70% — what category you read (tech, business, ...)
+  var SOURCE_WEIGHT = 0.3;  // 30% — who published it (Reddit, Washington Post, ...)
+
+  // Calculate a preference score for a card based on the user's history:
+  // a 70/30 weighted blend of how much they like the topic and the source.
   function getPreferenceScore(category, source) {
     var prefs = loadPrefs();
-    var score = 0;
+    var topicScore = 0;
+    var sourceScore = 0;
+
     var topic = normalizeTopic(category);
     if (topic && prefs.topicScores[topic]) {
-      score += prefs.topicScores[topic];
+      topicScore = prefs.topicScores[topic];
     }
     if (source && prefs.sourceScores[source]) {
-      score += prefs.sourceScores[source];
+      sourceScore = prefs.sourceScores[source];
     }
-    return score;
+
+    return (TOPIC_WEIGHT * topicScore) + (SOURCE_WEIGHT * sourceScore);
   }
 
   // --- DOM helpers ---
@@ -238,7 +248,7 @@
     var cards = getAllCards();
     if (cards.length === 0) return;
 
-    // score each card
+    // score each card by how much the user likes its topic + source
     var scored = cards.map(function (card) {
       var category = getArticleCategory(card);
       var source = getArticleSource(card);
@@ -246,14 +256,41 @@
       // unread articles get a slight boost so you see new stuff first
       var url = getArticleUrl(card);
       if (url && !isRead(url)) score += 0.5;
-      return { card: card, score: score };
+      return { card: card, score: score, topic: normalizeTopic(category) };
     });
 
-    // sort descending by score (stable: preserve original order for ties)
-    scored.sort(function (a, b) { return b.score - a.score; });
+    // Diversified ("blended") ordering, MMR-style: repeatedly place the
+    // highest-scoring card, but penalize a topic that already appeared in the
+    // last few slots so the same category doesn't clump 30-in-a-row. Your top
+    // topic still wins the most slots — it's just sprinkled through the feed
+    // instead of stacked at the top.
+    var ordered = [];
+    var recentTopics = [];
+    var LOOKBACK = 3;    // how many recent slots to weigh against repeats
+    var PENALTY = 0.4;   // how strongly a repeated topic gets pushed down
 
-    // reorder DOM
-    scored.forEach(function (item) {
+    while (scored.length) {
+      var bestIdx = 0;
+      var bestVal = -Infinity;
+      for (var i = 0; i < scored.length; i++) {
+        var repeats = 0;
+        for (var r = 0; r < recentTopics.length; r++) {
+          if (recentTopics[r] === scored[i].topic) repeats++;
+        }
+        var adjusted = scored[i].score - repeats * PENALTY;
+        if (adjusted > bestVal) {
+          bestVal = adjusted;
+          bestIdx = i;
+        }
+      }
+      var picked = scored.splice(bestIdx, 1)[0];
+      ordered.push(picked);
+      recentTopics.push(picked.topic);
+      if (recentTopics.length > LOOKBACK) recentTopics.shift();
+    }
+
+    // reorder DOM to the blended order
+    ordered.forEach(function (item) {
       container.appendChild(item.card);
     });
   }

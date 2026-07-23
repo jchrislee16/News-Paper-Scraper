@@ -90,22 +90,6 @@
     '</div>';
   }
 
-  function renderCategorySection(category, articles) {
-    var color = CATEGORY_COLORS[category] || '#6c757d';
-    var html = '<div class="category-section mb-5">' +
-      '<h3 style="color: ' + color + '; border-bottom: 3px solid ' + color + '; padding-bottom: 10px; margin-bottom: 20px;">' +
-        '<i class="fa fa-fire" style="margin-right: 8px;"></i>' + category +
-      '</h3>' +
-      '<div class="row">';
-
-    articles.forEach(function (article, i) {
-      html += renderCard(article, i);
-    });
-
-    html += '</div></div>';
-    return html;
-  }
-
   function renderArticles(data) {
     var container = document.getElementById('tech-news-container');
     if (!container) return;
@@ -116,19 +100,13 @@
       return;
     }
 
-    var grouped = {};
-    articles.forEach(function (a) {
-      var cat = a.category || 'General';
-      if (!grouped[cat]) grouped[cat] = [];
-      grouped[cat].push(a);
-    });
-
-    var categories = data.categories || Object.keys(grouped);
+    // Flat blended list: render every article in the order the server ranked
+    // them, directly into the container (which is itself a Bootstrap .row).
+    // No per-category sections — user-prefs.js then interleaves the cards so a
+    // single topic doesn't clump 30-in-a-row.
     var html = '';
-    categories.forEach(function (cat) {
-      if (grouped[cat] && grouped[cat].length > 0) {
-        html += renderCategorySection(cat, grouped[cat]);
-      }
+    articles.forEach(function (article, i) {
+      html += renderCard(article, i);
     });
 
     container.innerHTML = html;
