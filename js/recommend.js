@@ -31,3 +31,5 @@
     // 4. Sort in descending order by recommendation score
     .sort((a, b) => b.recommendScore - a.recommendScore);
 }
+
+window.getRecommendedNews = getRecommendedNews;
