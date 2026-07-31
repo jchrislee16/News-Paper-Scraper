@@ -19,6 +19,13 @@
 (function () {
   var STORAGE_KEY = 'newsUserPrefs';
 
+  // Testing toggle: render the score arithmetic on every card. Set
+  // window.PREFS_DEBUG_SCORES = false before this script loads (or run
+  // window.togglePrefsDebug() in the console) to hide it.
+  if (typeof window.PREFS_DEBUG_SCORES === 'undefined') {
+    window.PREFS_DEBUG_SCORES = true;
+  }
+
   // Maps display names (from HTML badges & data-category attrs) → DB topic keys.
   // Keeps localStorage aligned with the `topics` table in trend.sql.
   var TOPIC_MAP = {
@@ -183,20 +190,23 @@
 
   // Calculate a preference score for a card based on the user's history:
   // a 70/30 weighted blend of how much they like the topic and the source.
-  function getPreferenceScore(category, source) {
+  // Returns the parts too, so the debug badge can show the arithmetic.
+  function scoreBreakdown(category, source) {
     var prefs = loadPrefs();
-    var topicScore = 0;
-    var sourceScore = 0;
-
     var topic = normalizeTopic(category);
-    if (topic && prefs.topicScores[topic]) {
-      topicScore = prefs.topicScores[topic];
-    }
-    if (source && prefs.sourceScores[source]) {
-      sourceScore = prefs.sourceScores[source];
-    }
+    var topicScore = (topic && prefs.topicScores[topic]) || 0;
+    var sourceScore = (source && prefs.sourceScores[source]) || 0;
 
-    return (TOPIC_WEIGHT * topicScore) + (SOURCE_WEIGHT * sourceScore);
+    return {
+      topic: topic,
+      topicScore: topicScore,
+      sourceScore: sourceScore,
+      total: (TOPIC_WEIGHT * topicScore) + (SOURCE_WEIGHT * sourceScore)
+    };
+  }
+
+  function getPreferenceScore(category, source) {
+    return scoreBreakdown(category, source).total;
   }
 
   // --- DOM helpers ---
@@ -284,13 +294,18 @@
         }
       }
       var picked = scored.splice(bestIdx, 1)[0];
+      picked.adjusted = bestVal;
       ordered.push(picked);
       recentTopics.push(picked.topic);
       if (recentTopics.length > LOOKBACK) recentTopics.shift();
     }
 
     // reorder DOM to the blended order
-    ordered.forEach(function (item) {
+    ordered.forEach(function (item, pos) {
+      // stash the blended slot + the score that won it, so the debug badge can
+      // show why a card landed where it did (incl. the diversity penalty).
+      item.card.dataset.prefsSlot = pos + 1;
+      item.card.dataset.prefsAdjusted = item.adjusted.toFixed(3);
       container.appendChild(item.card);
     });
   }
@@ -395,6 +410,11 @@
       var category = getArticleCategory(card);
       var source = getArticleSource(card);
 
+      // --- Debug: show the client-side preference score on the card ---
+      if (window.PREFS_DEBUG_SCORES) {
+        renderScoreDebug(cardBody, card, category, source, url);
+      }
+
       // --- Card positioning for overlay elements ---
       var cardEl = card.querySelector('.card');
       if (cardEl) cardEl.style.position = 'relative';
@@ -449,6 +469,42 @@
     });
   }
 
+  // Testing aid: print the arithmetic behind a card's placement — the raw decay
+  // scores, the 70/30 blend, the unread boost, and the diversity-penalized value
+  // that actually won its slot. Toggle with window.PREFS_DEBUG_SCORES.
+  function renderScoreDebug(cardBody, card, category, source, url) {
+    var old = cardBody.querySelector('.prefs-score-debug');
+    if (old) old.remove();
+
+    var b = scoreBreakdown(category, source);
+    var unread = url && !isRead(url);
+    var withBoost = b.total + (unread ? 0.5 : 0);
+
+    var box = document.createElement('div');
+    box.className = 'prefs-score-debug';
+    box.style.cssText =
+      'margin-top:8px;padding:6px 8px;background:#f1f3f5;border-left:3px solid #ffbe33;' +
+      'border-radius:3px;font-family:monospace;font-size:11px;color:#495057;line-height:1.5;';
+
+    var rows =
+      '<div><strong>pref score: ' + withBoost.toFixed(3) + '</strong></div>' +
+      '<div>topic ' + (b.topic || '—') + ': ' + b.topicScore.toFixed(3) +
+        ' × ' + TOPIC_WEIGHT + ' = ' + (TOPIC_WEIGHT * b.topicScore).toFixed(3) + '</div>' +
+      '<div>source ' + (source || '—') + ': ' + b.sourceScore.toFixed(3) +
+        ' × ' + SOURCE_WEIGHT + ' = ' + (SOURCE_WEIGHT * b.sourceScore).toFixed(3) + '</div>' +
+      '<div>blend: ' + b.total.toFixed(3) + (unread ? ' + 0.500 unread' : ' (read, no boost)') + '</div>';
+
+    if (card.dataset.prefsSlot) {
+      rows += '<div>slot #' + card.dataset.prefsSlot +
+        ' @ adjusted ' + card.dataset.prefsAdjusted + '</div>';
+    } else {
+      rows += '<div>unsorted (needs 3+ reads)</div>';
+    }
+
+    box.innerHTML = rows;
+    cardBody.appendChild(box);
+  }
+
   function applyReadStyling(card, read) {
     var cardEl = card.querySelector('.card');
     if (!cardEl) return;
@@ -490,6 +546,17 @@
     // Reset decorated flags so cards get re-decorated
     getAllCards().forEach(function (card) { delete card.dataset.prefsDecorated; });
     init();
+  };
+
+  // Console helper: flip the debug badges on/off and re-render in place.
+  window.togglePrefsDebug = function () {
+    window.PREFS_DEBUG_SCORES = !window.PREFS_DEBUG_SCORES;
+    if (!window.PREFS_DEBUG_SCORES) {
+      document.querySelectorAll('.prefs-score-debug').forEach(function (el) { el.remove(); });
+    } else {
+      window.reinitUserPrefs();
+    }
+    return window.PREFS_DEBUG_SCORES;
   };
 
   if (document.readyState === 'loading') {

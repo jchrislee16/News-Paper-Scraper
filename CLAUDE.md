@@ -17,6 +17,10 @@ There is **no build system, package manager, or test suite** in this repo — it
 - **Preview locally:** open the `.html` files directly, or `python3 -m http.server` from the repo root (some JS expects a real origin for `fetch`).
 - **Compile SCSS:** `css/style.scss` → `css/style.css`. Use the `sass` CLI (e.g. `sass css/style.scss css/style.css`) — there is no npm script wired up.
 - **Deploy:** push to `main`; GitHub Pages auto-deploys.
+- **Check JS before pushing:** there are no tests, so `node --check js/<file>.js` is the only automated verification available. Everything else is verified in the browser console.
+- **Reset personalization state while testing:** `localStorage.removeItem('newsUserPrefs'); localStorage.removeItem('clickCounts'); localStorage.removeItem('cachedArticles')`.
+
+The working directory also contains untracked, gitignored artifacts (`venv/`, `free-server_key.pem`) — leave them alone; they are not part of the deployed site.
 
 ## Architecture
 
@@ -36,7 +40,23 @@ RSS Feeds / Web Scraping → Python fetcher → HTML injection → git push tren
 The site has two **different** ways article cards get onto a page. Don't confuse them:
 
 1. **`trend.html` — server-injected static cards.** The VM runs a Python script that regex-replaces the card HTML inside `trend.html`, commits, and pushes. The cards are baked into the file. It loads `custom.js` + `user-prefs.js` only (no API calls).
-2. **`trend_2.html` — client-side dynamic feed.** Loads `config.js` + `click-tracker.js` + `news-feed.js` + `user-prefs.js`. On load, `news-feed.js` POSTs to `/api/recommend` a payload of `{ clicks, topicScores, sourceScores, readArticles, limit: 100 }` — where `clicks` is the "soup": clicked-article titles pulled from `localStorage.clickCounts` that the backend turns into a TF-IDF vector for ranking. It renders the returned articles into `#tech-news-container`, grouped by category, and caches the full response in `localStorage.cachedArticles` as an offline/API-down fallback. No server-side HTML injection here.
+2. **`trend_2.html` — client-side dynamic feed.** Loads `config.js` + `click-tracker.js` + `news-feed.js` + `user-prefs.js`. On load, `news-feed.js` POSTs to `/api/recommend` a payload of `{ clicks, topicScores, sourceScores, readArticles, limit: 100 }` — where `clicks` is the "soup": clicked-article titles pulled from `localStorage.clickCounts` that the backend turns into a TF-IDF vector for ranking. It renders the returned articles into `#tech-news-container` as a **flat list in server-ranked order** (no per-category sections — `user-prefs.js` reorders them afterward, see Ranking below), and caches the full response in `localStorage.cachedArticles` as an offline/API-down fallback. No server-side HTML injection here.
+
+### Ranking happens twice — server, then client
+Order on `trend_2.html` is decided in two passes. Changing one without knowing about the other produces confusing results:
+
+1. **Server (TF-IDF "soup")** — `/api/recommend` ranks all articles by similarity to a vector built from the titles the user clicked. `news-feed.js` renders that order as-is, and each card shows the server's `score`.
+2. **Client (`user-prefs.js` → `sortByPreference`)** — once `readArticles.length >= 3`, it re-sorts the DOM:
+   - Each card scores `0.7 × topicScore + 0.3 × sourceScore` (`TOPIC_WEIGHT`/`SOURCE_WEIGHT`). Both are decay vectors summing to 1.0, so they're on the same scale and blend directly.
+   - Unread cards get a flat `+0.5` boost.
+   - Final placement is **MMR-style diversified**, not a plain sort: it repeatedly picks the best-scoring card but subtracts `PENALTY = 0.4` per occurrence of that topic in the last `LOOKBACK = 3` slots, so the top topic wins the most slots without clumping 30-in-a-row.
+
+**Debugging the client pass:** `window.PREFS_DEBUG_SCORES` (default `true`) appends a score breakdown to every card — raw topic/source scores, the 70/30 blend, the unread boost, and the penalized value that won the slot. `window.togglePrefsDebug()` flips it from the console.
+
+### Score bookkeeping — the decay vector
+Both `topicScores` and `sourceScores` update identically (`applyDecay` in `user-prefs.js`, mirrored in the `click-tracker.js` fallback): scale the whole vector to 95%, then add `0.05` to the clicked key. Because it divides by the current total first, a vector left summing to >1 (e.g. from the old raw-count path) self-heals back to 1.0 on the next click.
+
+**Known quirk:** on `trend_2.html` a single click applies the decay **twice** — `click-tracker.js` calls `window.recordClick()`, and `user-prefs.js`'s own `decorateCards` listener on the same anchor calls `recordClick()` again. `trend.html` doesn't load `click-tracker.js`, so it applies once. Keep this in mind when tuning the `0.05` step.
 
 ### Article Update Flow (VM → GitHub, for `trend.html`)
 The VM periodically:
