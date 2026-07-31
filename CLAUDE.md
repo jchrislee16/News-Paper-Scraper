@@ -27,7 +27,7 @@ The working directory also contains untracked, gitignored artifacts (`venv/`, `f
 ### Data Flow
 ```
 [Azure VM]
-RSS Feeds / Web Scraping → Python fetcher → HTML injection → git push trend.html to GitHub
+RSS Feeds / Web Scraping → Python fetcher → articles stored on VM → served by Flask API
                                                                         ↓
 [GitHub Pages]                                                   Static pages served
                                                                         ↓
@@ -36,11 +36,8 @@ RSS Feeds / Web Scraping → Python fetcher → HTML injection → git push tren
                                             Clicks recorded in localStorage (client-only)
 ```
 
-### Two rendering models — important
-The site has two **different** ways article cards get onto a page. Don't confuse them:
-
-1. **`trend.html` — server-injected static cards.** The VM runs a Python script that regex-replaces the card HTML inside `trend.html`, commits, and pushes. The cards are baked into the file. It loads `custom.js` + `user-prefs.js` only (no API calls).
-2. **`trend_2.html` — client-side dynamic feed.** Loads `config.js` + `click-tracker.js` + `news-feed.js` + `user-prefs.js`. On load, `news-feed.js` POSTs to `/api/recommend` a payload of `{ clicks, topicScores, sourceScores, readArticles, limit: 100 }` — where `clicks` is the "soup": clicked-article titles pulled from `localStorage.clickCounts` that the backend turns into a TF-IDF vector for ranking. It renders the returned articles into `#tech-news-container` as a **flat list in server-ranked order** (no per-category sections — `user-prefs.js` reorders them afterward, see Ranking below), and caches the full response in `localStorage.cachedArticles` as an offline/API-down fallback. No server-side HTML injection here.
+### One rendering model
+`trend_2.html` is the only article feed. **Client-side dynamic feed.** Loads `config.js` + `click-tracker.js` + `news-feed.js` + `user-prefs.js`. On load, `news-feed.js` POSTs to `/api/recommend` a payload of `{ clicks, topicScores, sourceScores, readArticles, limit: 100 }` — where `clicks` is the "soup": clicked-article titles pulled from `localStorage.clickCounts` that the backend turns into a TF-IDF vector for ranking. It renders the returned articles into `#tech-news-container` as a **flat list in server-ranked order** (no per-category sections — `user-prefs.js` reorders them afterward, see Ranking below), and caches the full response in `localStorage.cachedArticles` as an offline/API-down fallback. No server-side HTML injection here.
 
 ### Ranking happens twice — server, then client
 Order on `trend_2.html` is decided in two passes. Changing one without knowing about the other produces confusing results:
@@ -56,20 +53,11 @@ Order on `trend_2.html` is decided in two passes. Changing one without knowing a
 ### Score bookkeeping — the decay vector
 Both `topicScores` and `sourceScores` update identically (`applyDecay` in `user-prefs.js`, mirrored in the `click-tracker.js` fallback): scale the whole vector to 95%, then add `0.05` to the clicked key. Because it divides by the current total first, a vector left summing to >1 (e.g. from the old raw-count path) self-heals back to 1.0 on the next click.
 
-**Known quirk:** on `trend_2.html` a single click applies the decay **twice** — `click-tracker.js` calls `window.recordClick()`, and `user-prefs.js`'s own `decorateCards` listener on the same anchor calls `recordClick()` again. `trend.html` doesn't load `click-tracker.js`, so it applies once. Keep this in mind when tuning the `0.05` step.
-
-### Article Update Flow (VM → GitHub, for `trend.html`)
-The VM periodically:
-1. Runs the fetcher (RSS → generated HTML cards → regex-injected into `trend.html`)
-2. `git commit && git push` to this repo
-3. GitHub Pages auto-deploys
-
-The VM needs a clone of this repo with push access (SSH key or GitHub token).
+**Known quirk:** a single click applies the decay **twice** — `click-tracker.js` calls `window.recordClick()`, and `user-prefs.js`'s own `decorateCards` listener on the same anchor calls `recordClick()` again. Keep this in mind when tuning the `0.05` step.
 
 ### Frontend (this repo)
 - `index.html` — Home page
-- `trend.html` — Server-injected static article feed (updated by VM)
-- `trend_2.html` — Dynamic personalized feed (fetches `/api/recommend` at runtime)
+- `trend_2.html` — Dynamic personalized feed (fetches `/api/recommend` at runtime); the only article feed
 - `analytics.html` — Click dashboard. **Note: it GETs `/api/track`, which does not exist on the backend — this page is currently non-functional.**
 - `about.html`, `categories.html` — Static pages
 - `js/config.js` — Sets `window.NEWS_API_BASE`; provides `window.apiFetch()` retry wrapper
@@ -81,7 +69,7 @@ The VM needs a clone of this repo with push access (SSH key or GitHub token).
 
 ### Backend (on VM, not in this repo)
 Stored separately at `~/News-Paper-Scraper-Backend/`:
-- `scripts/` — RSS fetchers / scrapers that generate cards and inject them into `trend.html`
+- `scripts/` — RSS fetchers / scrapers that collect articles and store them for the API to serve
 - `api/track_server.py` — Flask API (CORS-enabled), runs on port 5000, exposed via a Cloudflare tunnel
 - `requirements.txt` — Python dependencies
 
@@ -100,13 +88,10 @@ All API URLs are centralized in `js/config.js`, which sets `window.NEWS_API_BASE
 
 **To change the API URL, edit only `js/config.js`.** On API failure, `config.js` re-fetches its own raw source from GitHub (`raw.githubusercontent.com/.../js/config.js`) to pick up a new tunnel URL, shows a reconnecting overlay, and retries up to 5 times. The VM can auto-update this file and git push.
 
-### HTML Injection via Regex (VM-side, for `trend.html`)
-VM scripts inject cards with:
-```python
-pattern = r'(<div class="row" id="tech-news-container">).*?(</div>\s*</div>\s*</section>)'
-new_html = re.sub(pattern, replacement, html_content, flags=re.DOTALL)
-```
-The container `id="tech-news-container"` is the shared anchor — both the VM injector and `news-feed.js` target it.
+### Article container
+`#tech-news-container` is the anchor `news-feed.js` renders into and `user-prefs.js` re-sorts.
+
+**Note:** the VM previously had a script that regex-injected static cards into `trend.html` and git-pushed the result. `trend.html` was deleted on 2026-07-30; if that script still runs on the VM it will recreate the file — disable it there.
 
 ### Article Card HTML Structure
 Cards use Bootstrap grid (`col-md-6 col-lg-4`) with rank badge, source/category badges, title, summary, date, and a "Read More" link. Tracked links must carry the data attributes that `click-tracker.js` and `user-prefs.js` read:

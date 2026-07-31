@@ -233,8 +233,8 @@
     if (link && link.dataset.source && link.dataset.source !== 'Unknown') {
       return link.dataset.source;
     }
-    // default for trend.html (all Washington Post)
-    return 'Washington Post';
+    // No usable source — score it as 0 rather than inventing one.
+    return null;
   }
 
   function getAllCards() {

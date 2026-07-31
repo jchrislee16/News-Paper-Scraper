@@ -21,8 +21,6 @@
     'General': '#6c757d'
   };
 
-  var RANK_COLORS = ['#ff4444', '#ff8800', '#ffbb00'];
-
   function loadPrefs() {
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
@@ -53,8 +51,7 @@
     }
   }
 
-  function renderCard(article, rank) {
-    var rankColor = rank < 3 ? RANK_COLORS[rank] : '#6c757d';
+  function renderCard(article) {
     var catColor = CATEGORY_COLORS[article.category] || '#6c757d';
     var title = article.title || 'No Title';
     var summary = article.summary || '';
@@ -75,7 +72,6 @@
     return '<div class="col-md-6 col-lg-4 mb-4">' +
       '<div class="card h-100" style="border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">' +
         '<div class="card-body">' +
-          '<span class="badge" style="background-color: ' + rankColor + '; color: #fff; padding: 3px 8px; border-radius: 50%; font-size: 11px; margin-right: 5px;">#' + (rank + 1) + '</span>' +
           '<span class="badge" style="background-color: #ffbe33; color: #fff; padding: 5px 10px; border-radius: 4px; font-size: 12px;">' + source + '</span>' +
           '<span class="badge" style="background-color: ' + catColor + '; color: #fff; padding: 5px 10px; border-radius: 4px; font-size: 12px; margin-left: 5px;">' + (article.category || 'General') + '</span>' +
           '<h5 class="card-title mt-2" style="font-weight: bold; color: #222;">' + title + '</h5>' +
@@ -105,8 +101,8 @@
     // No per-category sections — user-prefs.js then interleaves the cards so a
     // single topic doesn't clump 30-in-a-row.
     var html = '';
-    articles.forEach(function (article, i) {
-      html += renderCard(article, i);
+    articles.forEach(function (article) {
+      html += renderCard(article);
     });
 
     container.innerHTML = html;
