@@ -104,6 +104,7 @@
             try {
                 let prefs = JSON.parse(localStorage.getItem('newsUserPrefs') || '{}');
                 prefs.readArticles = prefs.readArticles || [];
+                prefs.readTitles = prefs.readTitles || [];
                 prefs.topicScores = prefs.topicScores || {};
                 prefs.sourceScores = prefs.sourceScores || {};
 
@@ -112,6 +113,13 @@
                 }
                 if (prefs.readArticles.length > 100) {
                     prefs.readArticles.shift();
+                }
+
+                if (prefs.readTitles.indexOf(title) === -1) {
+                    prefs.readTitles.push(title);
+                }
+                if (prefs.readTitles.length > 50) {
+                    prefs.readTitles.shift();
                 }
                 
                 let topicKey = category.toLowerCase();
