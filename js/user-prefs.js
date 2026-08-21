@@ -182,32 +182,9 @@
     return top;
   }
 
-  // How much each signal counts toward a card's recommendation score.
-  // Both topicScores and sourceScores are decay vectors that each sum to 1.0,
-  // so they're on the same 0–1 scale and can be blended directly.
-  var TOPIC_WEIGHT = 0.7;   // 70% — what category you read (tech, business, ...)
-  var SOURCE_WEIGHT = 0.3;  // 30% — who published it (Reddit, Washington Post, ...)
-
-  // Calculate a preference score for a card based on the user's history:
-  // a 70/30 weighted blend of how much they like the topic and the source.
-  // Returns the parts too, so the debug badge can show the arithmetic.
-  function scoreBreakdown(category, source) {
-    var prefs = loadPrefs();
-    var topic = normalizeTopic(category);
-    var topicScore = (topic && prefs.topicScores[topic]) || 0;
-    var sourceScore = (source && prefs.sourceScores[source]) || 0;
-
-    return {
-      topic: topic,
-      topicScore: topicScore,
-      sourceScore: sourceScore,
-      total: (TOPIC_WEIGHT * topicScore) + (SOURCE_WEIGHT * sourceScore)
-    };
-  }
-
-  function getPreferenceScore(category, source) {
-    return scoreBreakdown(category, source).total;
-  }
+  // NOTE: the 70/30 topic/source blend that used to live here now lives in
+  // js/recommend.js (clientSignal), where it is merged with the server's
+  // rank_score into the single feed ordering. Kept in one place on purpose.
 
   // --- DOM helpers ---
 
@@ -241,73 +218,6 @@
     var container = document.getElementById('tech-news-container');
     if (!container) return [];
     return Array.prototype.slice.call(container.querySelectorAll('.col-md-6'));
-  }
-
-  // --- Sort articles by user preference ---
-
-  function sortByPreference() {
-    var container = document.getElementById('tech-news-container');
-    if (!container) return;
-
-    var prefs = loadPrefs();
-    var totalClicks = prefs.readArticles.length;
-
-    // only sort if the user has clicked at least 3 articles (enough signal)
-    if (totalClicks < 3) return;
-
-    var cards = getAllCards();
-    if (cards.length === 0) return;
-
-    // score each card by how much the user likes its topic + source
-    var scored = cards.map(function (card) {
-      var category = getArticleCategory(card);
-      var source = getArticleSource(card);
-      var score = getPreferenceScore(category, source);
-      // unread articles get a slight boost so you see new stuff first
-      var url = getArticleUrl(card);
-      if (url && !isRead(url)) score += 0.5;
-      return { card: card, score: score, topic: normalizeTopic(category) };
-    });
-
-    // Diversified ("blended") ordering, MMR-style: repeatedly place the
-    // highest-scoring card, but penalize a topic that already appeared in the
-    // last few slots so the same category doesn't clump 30-in-a-row. Your top
-    // topic still wins the most slots — it's just sprinkled through the feed
-    // instead of stacked at the top.
-    var ordered = [];
-    var recentTopics = [];
-    var LOOKBACK = 3;    // how many recent slots to weigh against repeats
-    var PENALTY = 0.4;   // how strongly a repeated topic gets pushed down
-
-    while (scored.length) {
-      var bestIdx = 0;
-      var bestVal = -Infinity;
-      for (var i = 0; i < scored.length; i++) {
-        var repeats = 0;
-        for (var r = 0; r < recentTopics.length; r++) {
-          if (recentTopics[r] === scored[i].topic) repeats++;
-        }
-        var adjusted = scored[i].score - repeats * PENALTY;
-        if (adjusted > bestVal) {
-          bestVal = adjusted;
-          bestIdx = i;
-        }
-      }
-      var picked = scored.splice(bestIdx, 1)[0];
-      picked.adjusted = bestVal;
-      ordered.push(picked);
-      recentTopics.push(picked.topic);
-      if (recentTopics.length > LOOKBACK) recentTopics.shift();
-    }
-
-    // reorder DOM to the blended order
-    ordered.forEach(function (item, pos) {
-      // stash the blended slot + the score that won it, so the debug badge can
-      // show why a card landed where it did (incl. the diversity penalty).
-      item.card.dataset.prefsSlot = pos + 1;
-      item.card.dataset.prefsAdjusted = item.adjusted.toFixed(3);
-      container.appendChild(item.card);
-    });
   }
 
   // --- Inject filter toolbar + preference summary ---
@@ -410,11 +320,6 @@
       var category = getArticleCategory(card);
       var source = getArticleSource(card);
 
-      // --- Debug: show the client-side preference score on the card ---
-      if (window.PREFS_DEBUG_SCORES) {
-        renderScoreDebug(cardBody, card, category, source, url);
-      }
-
       // --- Card positioning for overlay elements ---
       var cardEl = card.querySelector('.card');
       if (cardEl) cardEl.style.position = 'relative';
@@ -469,42 +374,6 @@
     });
   }
 
-  // Testing aid: print the arithmetic behind a card's placement — the raw decay
-  // scores, the 70/30 blend, the unread boost, and the diversity-penalized value
-  // that actually won its slot. Toggle with window.PREFS_DEBUG_SCORES.
-  function renderScoreDebug(cardBody, card, category, source, url) {
-    var old = cardBody.querySelector('.prefs-score-debug');
-    if (old) old.remove();
-
-    var b = scoreBreakdown(category, source);
-    var unread = url && !isRead(url);
-    var withBoost = b.total + (unread ? 0.5 : 0);
-
-    var box = document.createElement('div');
-    box.className = 'prefs-score-debug';
-    box.style.cssText =
-      'margin-top:8px;padding:6px 8px;background:#f1f3f5;border-left:3px solid #ffbe33;' +
-      'border-radius:3px;font-family:monospace;font-size:11px;color:#495057;line-height:1.5;';
-
-    var rows =
-      '<div><strong>pref score: ' + withBoost.toFixed(3) + '</strong></div>' +
-      '<div>topic ' + (b.topic || '—') + ': ' + b.topicScore.toFixed(3) +
-        ' × ' + TOPIC_WEIGHT + ' = ' + (TOPIC_WEIGHT * b.topicScore).toFixed(3) + '</div>' +
-      '<div>source ' + (source || '—') + ': ' + b.sourceScore.toFixed(3) +
-        ' × ' + SOURCE_WEIGHT + ' = ' + (SOURCE_WEIGHT * b.sourceScore).toFixed(3) + '</div>' +
-      '<div>blend: ' + b.total.toFixed(3) + (unread ? ' + 0.500 unread' : ' (read, no boost)') + '</div>';
-
-    if (card.dataset.prefsSlot) {
-      rows += '<div>slot #' + card.dataset.prefsSlot +
-        ' @ adjusted ' + card.dataset.prefsAdjusted + '</div>';
-    } else {
-      rows += '<div>unsorted (needs 3+ reads)</div>';
-    }
-
-    box.innerHTML = rows;
-    cardBody.appendChild(box);
-  }
-
   function applyReadStyling(card, read) {
     var cardEl = card.querySelector('.card');
     if (!cardEl) return;
@@ -530,7 +399,6 @@
 
   function init() {
     createFilterBar();
-    sortByPreference();
     decorateCards();
 
     var prefs = loadPrefs();
@@ -540,6 +408,18 @@
       'Topic scores:', prefs.topicScores,
       'Source scores:', prefs.sourceScores);
   }
+
+  // Shared helpers for js/recommend.js, so TOPIC_MAP and the localStorage
+  // shape have exactly one definition. recommend.js falls back to its own
+  // minimal versions if this file has not loaded.
+  window.NewsPrefs = {
+    loadPrefs: loadPrefs,
+    normalizeTopic: normalizeTopic,
+    topicDisplayName: topicDisplayName,
+    isRead: isRead,
+    isSaved: isSaved,
+    getTopTopic: getTopTopic
+  };
 
   // Expose reinit for dynamic content (news-feed.js calls this after rendering)
   window.reinitUserPrefs = function () {
@@ -551,11 +431,10 @@
   // Console helper: flip the debug badges on/off and re-render in place.
   window.togglePrefsDebug = function () {
     window.PREFS_DEBUG_SCORES = !window.PREFS_DEBUG_SCORES;
-    if (!window.PREFS_DEBUG_SCORES) {
-      document.querySelectorAll('.prefs-score-debug').forEach(function (el) { el.remove(); });
-    } else {
-      window.reinitUserPrefs();
-    }
+    var display = window.PREFS_DEBUG_SCORES ? 'block' : 'none';
+    document.querySelectorAll('.prefs-score-debug').forEach(function (el) {
+      el.style.display = display;
+    });
     return window.PREFS_DEBUG_SCORES;
   };
 

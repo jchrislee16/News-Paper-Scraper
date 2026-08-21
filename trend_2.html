@@ -194,10 +194,13 @@
   <script src="js/config.js"></script>
   <!-- Click Tracking (localStorage only) -->
   <script src="js/click-tracker.js"></script>
-  <!-- Personalized news feed loader -->
-  <script src="js/news-feed.js"></script>
-  <!-- user preferences (localStorage) -->
+  <!-- user preferences (localStorage) — must load before recommend.js, which
+       reuses its TOPIC_MAP and prefs helpers via window.NewsPrefs -->
   <script src="js/user-prefs.js"></script>
+  <!-- merged ranker: the single sorting mechanism (server rank_score + local prefs) -->
+  <script src="js/recommend.js"></script>
+  <!-- Personalized news feed loader — calls the ranker, then renders -->
+  <script src="js/news-feed.js"></script>
 
 </body>
 

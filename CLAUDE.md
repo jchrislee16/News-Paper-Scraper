@@ -37,18 +37,31 @@ RSS Feeds / Web Scraping → Python fetcher → articles stored on VM → served
 ```
 
 ### One rendering model
-`trend_2.html` is the only article feed. **Client-side dynamic feed.** Loads `config.js` + `click-tracker.js` + `news-feed.js` + `user-prefs.js`. On load, `news-feed.js` POSTs to `/api/recommend` a payload of `{ clicks, topicScores, sourceScores, readArticles, limit: 100 }` — where `clicks` is the "soup": clicked-article titles pulled from `localStorage.clickCounts` that the backend turns into a TF-IDF vector for ranking. It renders the returned articles into `#tech-news-container` as a **flat list in server-ranked order** (no per-category sections — `user-prefs.js` reorders them afterward, see Ranking below), and caches the full response in `localStorage.cachedArticles` as an offline/API-down fallback. No server-side HTML injection here.
+`trend_2.html` is the only article feed. **Client-side dynamic feed.** Loads, in this order, `config.js` → `click-tracker.js` → `user-prefs.js` → `recommend.js` → `news-feed.js` (the order matters, see Ranking). On load, `news-feed.js` POSTs to `/api/recommend` a payload of `{ clicks, topicScores, sourceScores, readArticles, limit: 100 }` — where `clicks` is the "soup": clicked-article titles pulled from `localStorage.clickCounts` that the backend turns into a TF-IDF vector for ranking. It passes the response through `window.getRecommendedNews()` and renders the result into `#tech-news-container` as a **flat list in final merged order** (no per-category sections, and nothing re-sorts afterwards), caching the raw response in `localStorage.cachedArticles` as an offline/API-down fallback. No server-side HTML injection here.
 
-### Ranking happens twice — server, then client
-Order on `trend_2.html` is decided in two passes. Changing one without knowing about the other produces confusing results:
+### Ranking — one merged pass (`js/recommend.js`)
+Order on `trend_2.html` is decided in exactly one place: `window.getRecommendedNews(articles)`, called by `news-feed.js` on the article array *before* render. It ranks data, not DOM. **Historically this was two passes** (server ranked, then `user-prefs.js` re-sorted the cards on different criteria and partly overwrote the server's work); they were merged on 2026-08-20. `user-prefs.js` now only decorates — it no longer sorts.
 
-1. **Server (TF-IDF "soup")** — `/api/recommend` ranks all articles by similarity to a vector built from the titles the user clicked. `news-feed.js` renders that order as-is, and each card shows the server's `score`.
-2. **Client (`user-prefs.js` → `sortByPreference`)** — once `readArticles.length >= 3`, it re-sorts the DOM:
-   - Each card scores `0.7 × topicScore + 0.3 × sourceScore` (`TOPIC_WEIGHT`/`SOURCE_WEIGHT`). Both are decay vectors summing to 1.0, so they're on the same scale and blend directly.
-   - Unread cards get a flat `+0.5` boost.
-   - Final placement is **MMR-style diversified**, not a plain sort: it repeatedly picks the best-scoring card but subtracts `PENALTY = 0.4` per occurrence of that topic in the last `LOOKBACK = 3` slots, so the top topic wins the most slots without clumping 30-in-a-row.
+The merged score blends two signals:
 
-**Debugging the client pass:** `window.PREFS_DEBUG_SCORES` (default `true`) appends a score breakdown to every card — raw topic/source scores, the 70/30 blend, the unread boost, and the penalized value that won the slot. `window.togglePrefsDebug()` flips it from the console.
+| signal | source | what it means |
+|---|---|---|
+| **server** | `article.rank_score` from `/api/recommend` | cosine similarity to the TF-IDF soup of clicked titles — what the article is *about* |
+| **client** | `0.7 × topicScore + 0.3 × sourceScore` from `newsUserPrefs` | which feeds/categories you keep returning to |
+
+**Both are min-max normalized to 0–1 across the returned list before blending — never add them raw.** Measured live: `rank_score` spans only `0.143–0.196` when you have clicks but `0.567–0.599` at cold start, so its discriminating range is ~0.05 wide *and its absolute position moves with mode*, while the client blend spans 0–~0.4. A raw `0.5·server + 0.5·client` lets the client score bulldoze the server signal every time.
+
+Then, in order:
+1. `blended = 0.6 × serverNorm + 0.4 × clientNorm` (`SERVER_WEIGHT`/`CLIENT_WEIGHT`). Server is weighted higher because it reads article *text*; the client half is topic+source, which is ~91% one signal (see "Category is just source" below).
+2. **Cold start:** if `readArticles.length < 3` (`MIN_CLICKS`) or both score vectors are empty, `clientWeight` drops to 0 and the server takes the full 1.0. Pure content matching until there's real history.
+3. **Read articles sink:** `score = blended − 3.0` (`READ_PENALTY`) if already read. This must exceed the whole score range — an earlier `+0.5` unread *boost* was not decisive enough and let an article that topped both signals hold slot #1 after being read. At 3.0 the read band is `[-3,-2]` and unread is `[0,1]`, so even worst-case diversification (3 × 0.4) can't interleave them.
+4. **MMR-style diversification** picks the final order: repeatedly take the best remaining article, minus `PENALTY = 0.4` per occurrence of its topic in the last `LOOKBACK = 3` slots. Runs even at cold start, because raw server order clumps hard by category on its own (measured: longest same-category run 4 → 2 after diversification).
+
+`recommend.js` reuses `TOPIC_MAP` and the prefs helpers via `window.NewsPrefs` (exported by `user-prefs.js`), which is **why `user-prefs.js` must load first**. It falls back to a minimal inline implementation if that global is missing.
+
+**Debugging:** every card renders a `.prefs-score-debug` block (built in `news-feed.js` from the `article._rank` breakdown the ranker attaches) showing both raw and normalized signals, their weights, the read penalty, and the diversity-penalized value that won the slot. `window.togglePrefsDebug()` shows/hides them; set `window.PREFS_DEBUG_SCORES = false` before load to start hidden. `window.RANK_WEIGHTS` exposes the constants.
+
+**Note:** `article.score` is a *popularity* field that is `0` for nearly every article — it is not the ranking signal and the "Score:" text on cards almost never renders. The relevance number is `rank_score`.
 
 ### Score bookkeeping — the decay vector
 Both `topicScores` and `sourceScores` update identically (`applyDecay` in `user-prefs.js`, mirrored in the `click-tracker.js` fallback): scale the whole vector to 95%, then add `0.05` to the clicked key. Because it divides by the current total first, a vector left summing to >1 (e.g. from the old raw-count path) self-heals back to 1.0 on the next click.
@@ -58,12 +71,12 @@ Both `topicScores` and `sourceScores` update identically (`applyDecay` in `user-
 ### Frontend (this repo)
 - `index.html` — Home page
 - `trend_2.html` — Dynamic personalized feed (fetches `/api/recommend` at runtime); the only article feed
-- `analytics.html` — Click dashboard. **Note: it GETs `/api/track`, which does not exist on the backend — this page is currently non-functional.**
 - `about.html`, `categories.html` — Static pages
 - `js/config.js` — Sets `window.NEWS_API_BASE`; provides `window.apiFetch()` retry wrapper
 - `js/news-feed.js` — Dynamic feed renderer (used by `trend_2.html`)
-- `js/click-tracker.js` — **localStorage-only** click tracking (no API). Logs to `clickCounts` (100-item cap) AND, as a fallback when `window.recordClick` (from `user-prefs.js`) is absent, applies a decay-vector update to `newsUserPrefs`: existing `topicScores`/`sourceScores` are scaled to 95% and the clicked topic/source gets +0.05, keeping each score set normalized.
-- `js/user-prefs.js` — Personalization engine (localStorage)
+- `js/click-tracker.js` — **localStorage-only** click tracking (no API). Logs to `clickCounts` (100-item cap) AND, as a fallback when `window.recordClick` (from `user-prefs.js`) is absent, writes `newsUserPrefs` itself: decay-vector update (`topicScores`/`sourceScores` scaled to 95%, clicked key +0.05) plus `readArticles` (cap 100) and `readTitles` (cap 50). It also `preventDefault()`s the click and re-opens the URL via `window.open` after 100 ms — so tracked links are synthetic navigations and can trip popup blockers.
+- `js/recommend.js` — **the ranker.** `window.getRecommendedNews(articles)` — the single sorting mechanism; see Ranking above.
+- `js/user-prefs.js` — Personalization state + card decoration (localStorage). Owns `TOPIC_MAP`, the decay vectors, and the filter bar / bookmarks / badges / read styling, and exports `window.NewsPrefs` for `recommend.js`. **Does not sort** — that moved to `recommend.js`.
 - `js/custom.js` — UI scripts
 - `css/`, `fonts/`, `images/` — Static assets
 
@@ -77,19 +90,19 @@ Stored separately at `~/News-Paper-Scraper-Backend/`:
 - `POST /api/recommend` — personalized article ranking (used by `news-feed.js`) ✅
 - `GET /api/articles` — all articles, unranked ✅
 - `GET /api/health` — health check ✅
-- `GET /api/track` — **referenced by `analytics.html` but never built** ❌
+
+`analytics.html` (a click dashboard reading a `GET /api/track` that was never built) was deleted on 2026-08-06. If you build anonymous per-article counters later, the page is recoverable from git history — it expects `{success, total_clicks, unique_articles, articles: {id: {category, source, count}}}`.
 
 ## Important Patterns
 
 ### API Endpoint Configuration
 All API URLs are centralized in `js/config.js`, which sets `window.NEWS_API_BASE` (a `trycloudflare.com` tunnel URL that **changes every time the tunnel restarts**).
 - `js/news-feed.js` calls the API via `window.apiFetch(path, options)` (retry + reconnect wrapper)
-- `analytics.html` reads `window.NEWS_API_BASE` directly
 
 **To change the API URL, edit only `js/config.js`.** On API failure, `config.js` re-fetches its own raw source from GitHub (`raw.githubusercontent.com/.../js/config.js`) to pick up a new tunnel URL, shows a reconnecting overlay, and retries up to 5 times. The VM can auto-update this file and git push.
 
 ### Article container
-`#tech-news-container` is the anchor `news-feed.js` renders into and `user-prefs.js` re-sorts.
+`#tech-news-container` is the anchor `news-feed.js` renders into (in final ranked order) and `user-prefs.js` decorates. Nothing re-sorts it after render.
 
 **Note:** the VM previously had a script that regex-injected static cards into `trend.html` and git-pushed the result. `trend.html` was deleted on 2026-07-30; if that script still runs on the VM it will recreate the file — disable it there.
 

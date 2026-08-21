@@ -51,6 +51,31 @@
     }
   }
 
+  // Testing aid: show the arithmetic behind a card's slot — both normalized
+  // signals, their weights, the unread boost, and the diversity-penalized value
+  // that actually won the slot. Toggle with window.togglePrefsDebug().
+  function renderScoreDebug(article) {
+    var r = article._rank;
+    if (!r) return '';
+    var hidden = (window.PREFS_DEBUG_SCORES === false) ? 'display:none;' : '';
+
+    return '<div class="prefs-score-debug" style="' + hidden +
+      'margin-top:8px;padding:6px 8px;background:#f1f3f5;border-left:3px solid #ffbe33;' +
+      'border-radius:3px;font-family:monospace;font-size:11px;color:#495057;line-height:1.5;">' +
+      '<div><strong>slot #' + r.slot + ' &mdash; score ' + r.score.toFixed(3) + '</strong></div>' +
+      '<div>server ' + r.serverRaw.toFixed(4) + ' &rarr; ' + r.serverNorm.toFixed(3) +
+        ' &times; ' + r.serverWeight.toFixed(2) + ' = ' + (r.serverNorm * r.serverWeight).toFixed(3) + '</div>' +
+      '<div>client ' + r.clientRaw.toFixed(4) + ' &rarr; ' + r.clientNorm.toFixed(3) +
+        ' &times; ' + r.clientWeight.toFixed(2) + ' = ' + (r.clientNorm * r.clientWeight).toFixed(3) +
+        (r.hasHistory ? '' : ' (off: &lt;3 reads)') + '</div>' +
+      '<div>&nbsp;&nbsp;topic ' + (r.topic || '&mdash;') + ' ' + r.topicScore.toFixed(3) +
+        ' / source ' + r.sourceScore.toFixed(3) + '</div>' +
+      '<div>blend ' + r.blended.toFixed(3) +
+        (r.unread ? ' (unread)' : ' &minus; ' + r.readPenalty.toFixed(1) + ' already read') + '</div>' +
+      '<div>won slot @ ' + r.adjusted.toFixed(3) + ' after diversity penalty</div>' +
+    '</div>';
+  }
+
   function renderCard(article) {
     var catColor = CATEGORY_COLORS[article.category] || '#6c757d';
     var title = article.title || 'No Title';
@@ -81,6 +106,7 @@
             'style="background-color: #222; color: #fff; padding: 8px 16px; border-radius: 4px; font-size: 14px;" ' +
             'data-title="' + safeTitle + '" data-source="' + source + '" data-category="' + article.category + '">' +
             'Read More</a>' +
+          renderScoreDebug(article) +
         '</div>' +
       '</div>' +
     '</div>';
@@ -91,15 +117,22 @@
     if (!container) return;
 
     var articles = data.articles || [];
+
+    // ONE sorting mechanism: merge the server's rank_score with the local
+    // topic/source preference and render that order. Nothing re-sorts the DOM
+    // afterwards — user-prefs.js only decorates. See js/recommend.js.
+    if (typeof window.getRecommendedNews === 'function') {
+      articles = window.getRecommendedNews(articles);
+    }
+
     if (articles.length === 0) {
       container.innerHTML = '<div style="text-align:center;padding:40px;"><p style="color:#666;">No articles available. Please check back later.</p></div>';
       return;
     }
 
-    // Flat blended list: render every article in the order the server ranked
-    // them, directly into the container (which is itself a Bootstrap .row).
-    // No per-category sections — user-prefs.js then interleaves the cards so a
-    // single topic doesn't clump 30-in-a-row.
+    // Flat list rendered in final merged order, straight into the container
+    // (which is itself a Bootstrap .row). No per-category sections, and no
+    // second pass — diversification already happened inside the ranker.
     var html = '';
     articles.forEach(function (article) {
       html += renderCard(article);
