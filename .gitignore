@@ -1,0 +1,12 @@
+# SSH / credentials — never commit. main is the public Pages branch.
+*.pem
+free-server_key.pem
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS
+.DS_Store

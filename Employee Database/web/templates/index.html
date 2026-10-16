@@ -1,0 +1,197 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Employee Database — data viewer</title>
+<style>
+  /* Text only. Borders and spacing, nothing decorative. */
+  body   { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px;
+           margin: 24px; max-width: 1400px; color: #111; background: #fff; }
+  h1     { font-size: 16px; margin: 0 0 4px; }
+  p.sub  { margin: 0 0 16px; color: #555; }
+  fieldset { border: 1px solid #bbb; margin: 0 0 14px; padding: 10px 12px; }
+  legend { color: #555; padding: 0 4px; }
+  button { font: inherit; padding: 4px 10px; margin: 2px 4px 2px 0; cursor: pointer;
+           border: 1px solid #888; background: #f4f4f4; }
+  button:hover  { background: #e4e4e4; }
+  button.active { background: #111; color: #fff; border-color: #111; }
+  input, select { font: inherit; padding: 4px 6px; border: 1px solid #888; }
+  input[type=text] { width: 280px; }
+  table  { border-collapse: collapse; margin-top: 10px; }
+  th, td { border: 1px solid #ccc; padding: 3px 8px; text-align: left; white-space: nowrap; }
+  th     { background: #f0f0f0; }
+  tr:nth-child(even) td { background: #fafafa; }
+  td.num { text-align: right; }
+  /* Accounting statement rows: totals stand out, memos recede. */
+  tr.sec-TOTAL td { font-weight: 700; background: #eef2f6 !important; }
+  tr.sec-COGS  td { color: #8a3a00; }
+  tr.sec-Memo  td { color: #666; font-style: italic; }
+  td.neg  { color: #a00; }
+  #note  { color: #555; margin: 10px 0 0; }
+  #sql   { color: #444; background: #f6f6f6; border: 1px solid #ddd; padding: 6px 8px;
+           margin-top: 8px; white-space: pre-wrap; display: none; }
+  #count { color: #555; margin-top: 8px; }
+  .err   { color: #a00; }
+  a      { color: #06c; }
+</style>
+
+<h1>Employee Database — data viewer</h1>
+<p class="sub">Customer : Order : Product, with the voice-assistant layer. Plain text, no graphics.</p>
+
+<fieldset>
+  <legend>datasets</legend>
+  {% for key, label, note in buttons %}
+    <button data-key="{{ key }}" title="{{ note }}">{{ label }}</button>
+  {% endfor %}
+</fieldset>
+
+<fieldset>
+  <legend>voice lookup — type a misheard phrase the way a person would say it</legend>
+  <select id="kind">
+    <option value="customer">customer</option>
+    <option value="product">product</option>
+    <option value="employee">employee</option>
+    <option value="order">order</option>
+  </select>
+  <input type="text" id="phrase" placeholder="jon smyth" value="jon smyth">
+  <button id="ask">Resolve</button>
+  <span id="examples"></span>
+</fieldset>
+
+<fieldset>
+  <legend>accounting — profit and loss for a period</legend>
+  <label>from <input type="date" id="plstart"></label>
+  <label style="margin-left:8px">to <input type="date" id="plend"></label>
+  <button id="plrun" style="margin-left:10px">Profit &amp; Loss</button>
+  <span id="plquick" style="margin-left:10px"></span>
+</fieldset>
+
+<fieldset>
+  <legend>one order</legend>
+  <input type="text" id="ordernum" placeholder="A-1001" value="A-1001" style="width:120px">
+  <button id="lookup">Show items</button>
+  <label style="margin-left:18px"><input type="checkbox" id="showsql"> show SQL</label>
+</fieldset>
+
+<div id="note"></div>
+<pre id="sql"></pre>
+<div id="count"></div>
+<div id="out"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const NUMERIC = /^-?[\d.]+$/;
+
+const EXAMPLES = {
+  customer: ['jon smyth', 'maria gonzales', 'aysha puttell', 'smyth', 'bobby'],
+  product:  ['mowse', 'wireless mowse', 'mbp', 'monitor', 'microphone for meetings'],
+  employee: ['pria', 'sofia', 'dana whitfield'],
+  order:    ['a1003', 'A-1010', '1001'],
+};
+
+function renderExamples() {
+  const kind = $('kind').value;
+  $('examples').innerHTML = 'try: ' + EXAMPLES[kind]
+    .map(e => `<a href="#" data-ex="${e}">${e}</a>`).join(' · ');
+}
+
+function render(payload) {
+  $('note').textContent = payload.note || '';
+  $('sql').textContent = payload.sql || '';
+  $('sql').style.display = $('showsql').checked && payload.sql ? 'block' : 'none';
+
+  if (payload.error) {
+    $('out').innerHTML = `<p class="err">${payload.error}</p>`;
+    $('count').textContent = '';
+    return;
+  }
+  if (!payload.rows.length) {
+    $('out').innerHTML = '<p>no rows — nothing matched</p>';
+    $('count').textContent = '';
+    return;
+  }
+  const head = payload.columns.map(c => `<th>${c}</th>`).join('');
+  // A P&L comes back as (section, line_item, amount); use section to style the row.
+  const secCol = payload.columns.indexOf('section');
+  const body = payload.rows.map(r => {
+    const rowCls = secCol >= 0 && r[secCol] ? ` class="sec-${r[secCol]}"` : '';
+    const cells = r.map(v => {
+      const text = (v === null || v === '') ? '' : String(v);
+      if (!NUMERIC.test(text)) return `<td>${text}</td>`;
+      return `<td class="num${text.startsWith('-') ? ' neg' : ''}">${text}</td>`;
+    }).join('');
+    return `<tr${rowCls}>${cells}</tr>`;
+  }).join('');
+  $('out').innerHTML = `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+  $('count').textContent = `${payload.rows.length} row${payload.rows.length === 1 ? '' : 's'}`;
+}
+
+async function load(url, button) {
+  document.querySelectorAll('fieldset button').forEach(b => b.classList.remove('active'));
+  if (button) button.classList.add('active');
+  $('out').innerHTML = '<p>loading…</p>';
+  try {
+    const res = await fetch(url);
+    render(await res.json());
+  } catch (e) {
+    render({ error: 'could not reach the server: ' + e.message, rows: [], columns: [] });
+  }
+}
+
+document.querySelectorAll('button[data-key]').forEach(b =>
+  b.addEventListener('click', () => load(`/api/data/${b.dataset.key}`, b)));
+
+$('ask').addEventListener('click', () =>
+  load(`/api/resolve?kind=${$('kind').value}&q=${encodeURIComponent($('phrase').value)}`, $('ask')));
+$('phrase').addEventListener('keydown', e => { if (e.key === 'Enter') $('ask').click(); });
+
+$('lookup').addEventListener('click', () =>
+  load(`/api/order/${encodeURIComponent($('ordernum').value.trim())}`, $('lookup')));
+$('ordernum').addEventListener('keydown', e => { if (e.key === 'Enter') $('lookup').click(); });
+
+function runPL() {
+  load(`/api/pl?start=${$('plstart').value}&end=${$('plend').value}`, $('plrun'));
+}
+$('plrun').addEventListener('click', runPL);
+
+// Default the range to the full span of orders in the database, and offer the
+// shortcuts an accountant actually reaches for.
+async function initPeriod() {
+  let full = { start: '', end: '' };
+  try { full = await (await fetch('/api/period')).json(); } catch (e) { /* leave blank */ }
+  $('plstart').value = full.start;
+  $('plend').value = full.end;
+
+  const today = full.end || new Date().toISOString().slice(0, 10);
+  const shift = (days) => {
+    const d = new Date(today + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() - days);
+    return d.toISOString().slice(0, 10);
+  };
+  const ranges = {
+    'all time':      [full.start, full.end],
+    'this month':    [today.slice(0, 7) + '-01', today],
+    'last 30 days':  [shift(29), today],
+    'last 90 days':  [shift(89), today],
+  };
+  $('plquick').innerHTML = 'range: ' + Object.keys(ranges)
+    .map(k => `<a href="#" data-range="${k}">${k}</a>`).join(' · ');
+  $('plquick').addEventListener('click', e => {
+    const key = e.target.dataset.range;
+    if (!key) return;
+    e.preventDefault();
+    [$('plstart').value, $('plend').value] = ranges[key];
+    runPL();
+  });
+}
+
+$('kind').addEventListener('change', renderExamples);
+$('examples').addEventListener('click', e => {
+  if (e.target.dataset.ex) { e.preventDefault(); $('phrase').value = e.target.dataset.ex; $('ask').click(); }
+});
+$('showsql').addEventListener('change', () => {
+  $('sql').style.display = $('showsql').checked && $('sql').textContent ? 'block' : 'none';
+});
+
+renderExamples();
+initPeriod();
+document.querySelector('button[data-key="orders"]').click();
+</script>
