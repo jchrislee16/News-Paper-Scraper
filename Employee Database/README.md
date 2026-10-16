@@ -5,6 +5,20 @@ to sit underneath an Alexa-style voice assistant.
 
 Verified on PostgreSQL 14 (local) and PostgreSQL 14.24 (Azure VM).
 
+> **This schema now exists twice.** `sql/` is the PostgreSQL original;
+> `sql-mysql/` is a MySQL 8/9 port, built to converge with the partner work in
+> the repo root. Both load from scratch and produce identical numbers — all 11
+> view/report parity checks match to the cent. The port keeps every table,
+> constraint, generated column, view and the accounting reports; it loses
+> trigram fuzzy matching, a composable P&L function, timezone-aware timestamps
+> and two runaway-query guards. **Read [PORTING.md](PORTING.md) before using the
+> MySQL side**, especially if you touch the resolvers or `06_comments.sql`.
+>
+> ```
+> ./load.sh              # PostgreSQL
+> ./load-mysql.sh        # MySQL
+> ```
+
 ## Quick start
 
 ```bash

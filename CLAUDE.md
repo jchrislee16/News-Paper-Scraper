@@ -11,6 +11,38 @@ for the design rationale; the short version:
 - `./load.sh` rebuilds the local database, `./deploy.sh` pushes to the VM and rebuilds
   there. Both DROP the target database first.
 - `sql/` is numbered and order-dependent (`01`..`08`).
+
+### The schema exists twice: Postgres AND MySQL
+
+`sql/` is the PostgreSQL original. `sql-mysql/` is a MySQL 8/9 port, added to converge
+with the partner's MySQL work. `./load-mysql.sh` builds it; `web/app_mysql.py` +
+`web/requirements-mysql.txt` are the PyMySQL version of the viewer.
+
+**`PORTING.md` is the authority on the differences — read it before editing either
+tree.** The short version:
+
+- Parity is verified: 11 of 11 view/report checks identical to the cent after a clean
+  rebuild of each engine. Re-verify after any schema change; the 21 `FILTER` →
+  `CASE WHEN` rewrites in `04_views.sql` are the likeliest place for a silent drift,
+  and `average_order_value` specifically has already had a fan-out bug once.
+- **Lost in MySQL:** `similarity()`/`dmetaphone()`/`unaccent()` (so the resolvers score
+  discrete tiers, not continuous similarity — `sp_resolve_*`, not `ai.resolve_*`);
+  `fn_profit_and_loss` is now `CALL sp_profit_and_loss(...)` and cannot be
+  selected/joined/filtered; `timestamptz` → `DATETIME` (no timezone, store UTC);
+  partial indexes; `statement_timeout` on the role (the client must now
+  `SET SESSION max_execution_time` — `app_mysql.py` does, any new client must too).
+- **MySQL has no schemas inside a database**, so the `ai` schema became an `ai_` table
+  prefix (`ai.utterance` → `ai_utterance`).
+- **MySQL cannot comment a view at all.** View descriptions live in the `ai_object_doc`
+  table, which `ai_schema_context` joins back in. Adding a view means adding its row
+  there too, or its description silently never reaches the model's prompt.
+- **`sql-mysql/06_comments.sql` can silently revert a schema change.** MySQL requires
+  restating a column's whole definition to set its comment, so a type/default/nullability
+  change in `02_core_tables.sql` must be mirrored there.
+- `sql_mode` is set by `load-mysql.sh` via `--init-command`, not inside a `.sql` file —
+  each file runs in its own `mysql` process, so a `SET SESSION` would cover one file only.
+- `deploy-mysql.sh` exists but **has never been run**: the VM runs PostgreSQL 14.24, not
+  MySQL. It checks for a `mysql` client and aborts if absent.
 - The `ai` schema holds entity resolution, the conversation log, and `ai.schema_context`
   — a view that generates the model's schema prompt from live `COMMENT ON` metadata.
   **Documenting a column is how you teach the assistant about it**, so keep
