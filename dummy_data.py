@@ -121,6 +121,109 @@ def create_order_dummy_data(connection, num_records):
     print(f"An error occurred: {e}")
     connection.rollback()
 
+def create_employee_dummy_data(connection, num_records):
+  try:
+    with connection.cursor() as cursor:
+      print(f"Generating and inserting {num_records} dummy records into the employee table...")
+
+      for i in range(num_records):
+        first_name = fake.first_name()
+        last_name = fake.last_name()
+        full_name = f"{first_name} {last_name}"
+        
+        # Append an index to ensure email uniqueness and avoid duplicate entry errors
+        email = f"emp_{i}_{fake.unique.email()}"
+        phone = fake.phone_number()
+        
+        job_title = fake.job()
+        departments = ["Engineering", "Marketing", "Sales", "HR", "Finance", "Product"]
+        department = random.choice(departments)
+        
+        # Assign a random manager ID or None for the first few records
+        manager_id = random.choice([None, random.randint(1, 10)]) if i > 0 else None
+        
+        # Generate a random hire date within the past 5 years (1825 days)
+        random_days = random.randint(0, 1825)
+        random_seconds = random.randint(0, 86400)
+        hired_on = datetime.now() - timedelta(days=random_days, seconds=random_seconds)
+        
+        is_active = random.choice([True, False])
+        
+        created_at = datetime.now() - timedelta(days=random.randint(0, 30), seconds=random.randint(0, 86400))
+        updated_at = datetime.now()
+
+        sql = """
+            INSERT INTO employee (
+                first_name, last_name, full_name, email, phone, 
+                job_title, department, manager_id, hired_on, 
+                is_active, created_at, updated_at
+            ) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+        cursor.execute(sql, (
+            first_name, last_name, full_name, email, phone,
+            job_title, department, manager_id, hired_on,
+            is_active, created_at, updated_at
+        ))
+
+      connection.commit()
+      print("Employee dummy data successfully inserted!")
+
+  except Exception as e:
+    print(f"An error occurred: {e}")
+    connection.rollback()
+
+def create_customer_dummy_data(connection, num_records):
+  try:
+    with connection.cursor() as cursor:
+      print(f"Generating and inserting {num_records} dummy records into the customer table...")
+
+      for i in range(num_records):
+        first_name = fake.first_name()
+        last_name = fake.last_name()
+        full_name = f"{first_name} {last_name}"
+        
+        # Append an index to ensure email uniqueness and avoid duplicate entry errors
+        email = f"cust_{i}_{fake.unique.email()}"
+        phone = fake.phone_number()
+        
+        tiers = ["Standard", "Silver", "Gold", "Platinum"]
+        tier = random.choice(tiers)
+        
+        # Assign a random account manager ID or None for the first few records
+        account_manager_id = random.choice([None, random.randint(1, 10)]) if i > 0 else None
+        
+        # Generate a random sign-up date within the past 3 years (1095 days)
+        random_days = random.randint(0, 1095)
+        random_seconds = random.randint(0, 86400)
+        signed_up_on = datetime.now() - timedelta(days=random_days, seconds=random_seconds)
+        
+        is_active = random.choice([True, False])
+        
+        created_at = datetime.now() - timedelta(days=random.randint(0, 30), seconds=random.randint(0, 86400))
+        updated_at = datetime.now()
+
+        sql = """
+            INSERT INTO customer (
+                first_name, last_name, full_name, email, phone, 
+                tier, account_manager_id, signed_up_on, 
+                is_active, created_at, updated_at
+            ) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+        cursor.execute(sql, (
+            first_name, last_name, full_name, email, phone,
+            tier, account_manager_id, signed_up_on,
+            is_active, created_at, updated_at
+        ))
+
+      connection.commit()
+      print("Customer dummy data successfully inserted!")
+
+  except Exception as e:
+    print(f"An error occurred: {e}")
+    connection.rollback()
+
 if __name__ == "__main__":
   db_connection = connect_db()
   
