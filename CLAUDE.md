@@ -2,14 +2,34 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## There is ONE schema
+
+`Employee Database/sql-mysql/` (MySQL) and `Employee Database/sql/` (PostgreSQL) are
+the SAME schema — same 8 tables, same 92 columns, 11 of 11 view/report parity checks
+identical to the cent. `sql/` is not a second design; see `PORTING.md`.
+
+The old root-level `sql db` and `dummy_data.py` were an independent 2-table draft and
+have been removed. The generator survives as `Employee Database/generate_data.py`,
+rewritten to target the real schema and cover all seven business tables. Recover the
+originals from `git show 1c5f63f:'sql db'` if ever needed.
+
+Do not reintroduce a second set of table definitions anywhere in this repo.
+
 ## Current project: `Employee Database/`
 
 A PostgreSQL schema for Employee : Customer : Order : Product, built to sit under a
 voice assistant. Nothing else in this repo is live. See `Employee Database/README.md`
 for the design rationale; the short version:
 
-- `./load.sh` rebuilds the local database, `./deploy.sh` pushes to the VM and rebuilds
-  there. Both DROP the target database first.
+- `./load.sh` rebuilds the local Postgres database, `./load-mysql.sh` the MySQL one,
+  `./deploy.sh` pushes to the VM and rebuilds there. All DROP the target first.
+  `deploy.sh` now REQUIRES VM_HOST/VM_USER/VM_KEY from the environment (they used to
+  be hardcoded, which published the VM's IP); real values live in untracked
+  `.env.deploy`, so `source .env.deploy` before deploying.
+- `generate_data.py` adds bulk rows on top of the hand seed:
+  `python3 generate_data.py --customers 2000 --orders 8000`. It never writes
+  generated columns (full_name, line_total, line_cost, search_document) and never
+  sets order_number or order_status_history — triggers own those.
 - `sql/` is numbered and order-dependent (`01`..`08`).
 
 ### The schema exists twice: Postgres AND MySQL
