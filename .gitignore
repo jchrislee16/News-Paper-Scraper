@@ -7,6 +7,10 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+# .venv-mysql and any other variant. Without the glob these are ignored only by
+# the .gitignore venv writes inside itself -- delete that and 43M becomes
+# stageable on a branch that publishes to GitHub Pages.
+.venv*/
 
 # OS
 .DS_Store

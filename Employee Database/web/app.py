@@ -8,7 +8,6 @@ as a bound parameter.
     DATABASE_URL=dbname=employee_db python3 app.py      # default
     PORT=5001 python3 app.py
 """
-import json
 import os
 from datetime import date, datetime
 from decimal import Decimal
