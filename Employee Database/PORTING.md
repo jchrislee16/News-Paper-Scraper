@@ -28,7 +28,7 @@ clean rebuild of each. 11 of 11 checks identical to the cent:
 | `v_customer_balance` | 2 |
 | `v_ar_aging` | 2 |
 | `order_status_history` (trigger-written) | 17 |
-| `fn_profit_and_loss` vs `sp_profit_and_loss` | 14 lines |
+| `fn_profit_and_loss` vs `fn_profit_and_loss` | 14 lines |
 
 Two comparisons initially showed differences that turned out to be client
 rendering, not data: Postgres prints a numeric zero as `0` where MySQL prints
@@ -66,7 +66,7 @@ gradual. If resolution quality starts to matter, do the fuzzy match in the
 application (`rapidfuzz`) and use the procedures only for the exact tiers.
 
 **`fn_profit_and_loss` is no longer composable.** MySQL functions cannot return
-a result set, so it is `CALL sp_profit_and_loss(from, to)` now. You cannot
+a result set, so it is `CALL fn_profit_and_loss(from, to)` now. You cannot
 `SELECT FROM` it, filter it, join it, or wrap it in a view. `web/app_mysql.py`
 does the trimming that used to be a `SELECT` list.
 

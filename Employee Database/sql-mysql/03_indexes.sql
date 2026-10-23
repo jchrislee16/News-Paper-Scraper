@@ -56,9 +56,10 @@ CREATE INDEX employee_name_phonetic ON employee  ((SOUNDEX(full_name)));
 CREATE INDEX product_name_phonetic  ON product   ((SOUNDEX(name)));
 
 -- "anything like a standing desk?"
--- Replaces the Postgres generated tsvector column + GIN index. Same three
--- columns, different query API: MATCH(...) AGAINST(...) instead of @@.
-CREATE FULLTEXT INDEX product_search_idx ON product (name, brand, description);
+-- Indexes the generated search_document column, mirroring Postgres, which puts
+-- its GIN index on a generated tsvector of the same name. Different internals
+-- (plain text vs tsvector), identical column name and identical inputs.
+CREATE FULLTEXT INDEX product_search_idx ON product (search_document);
 
 -- Order numbers get spoken as "A dash ten forty two" / "a1042"; index a
 -- punctuation-stripped form so the resolver can match either shape.

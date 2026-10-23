@@ -67,3 +67,41 @@ COMMENT ON FUNCTION ai.resolve_customer(text, numeric) IS 'Spoken phrase -> cand
 COMMENT ON FUNCTION ai.resolve_product(text, numeric) IS 'Spoken phrase -> candidate products, ranked. Also matches vague descriptions via full-text search.';
 COMMENT ON FUNCTION ai.resolve_employee(text, numeric) IS 'Spoken phrase -> candidate employees, ranked.';
 COMMENT ON FUNCTION ai.resolve_order(text) IS 'Spoken order reference in any shape ("A-1003", "a1003", "1003") -> matching orders.';
+
+-- ---------------------------------------------------------------------------
+-- ai.object_doc — the same rows the MySQL port keeps, carried here too.
+--
+-- Redundant on Postgres: the COMMENT ON VIEW statements above already reach
+-- ai.schema_context. It is populated anyway so both engines return the same
+-- table_purpose text for every view, and so adding a view means adding its
+-- description in one place that works on either engine.
+-- ---------------------------------------------------------------------------
+INSERT INTO ai.object_doc (object_name, object_type, purpose) VALUES
+('v_order_summary','view',
+ 'ONE ROW PER ORDER with customer, rep and money already totalled. Default starting point for any order question. grand_total = items + shipping + tax - order discount.'),
+('v_order_line','view',
+ 'One row per line item, fully denormalised with product and customer names. Use for "what was in that order" and per-product breakdowns.'),
+('v_customer_360','view',
+ 'One row per customer with order_count, lifetime_value, average_order_value and recency. Cancelled AND refunded orders are already excluded from the money and count columns. average_order_value is per order, not per line item. Caveat: first_order_at/last_order_at/days_since_last_order count every order including cancelled and refunded ones.'),
+('v_product_performance','view',
+ 'One row per product with units_sold, revenue, cogs, gross_profit, margin_pct, inventory_value and needs_restock. Cancelled AND refunded orders already excluded. Use this to break down where the P&L gross profit came from, by product or category.'),
+('v_employee_sales','view',
+ 'One row per employee with orders_closed and revenue attributed as sales rep. Cancelled AND refunded orders already excluded.'),
+('v_daily_sales','view',
+ 'Revenue and order count per calendar day, cancelled and refunded orders excluded. Use for trends and period comparisons.'),
+('v_customer_balance','view',
+ 'ACCOUNTS RECEIVABLE DETAIL: one row per unpaid invoice with an aging bucket. "Unpaid" means status = ''pending'' — there is no payment table, so this is inferred from fulfilment state, not observed. Use for "who owes us money" and "what is overdue".'),
+('v_ar_aging','view',
+ 'A/R aging summary: one row per customer owing money, with balances bucketed Current/31-60/61-90/90+. Derived from v_customer_balance; same pending-means-unpaid caveat.'),
+-- These three are named without the ai_ prefix because on Postgres the schema
+-- carries it: information_schema reports table_name = 'schema_context' in
+-- schema 'ai'. The MySQL port stores them as 'ai_schema_context' etc., which is
+-- the same uniform ai.X <-> ai_X mapping used for every object in this schema.
+('schema_context','view',
+ 'The live schema prompt. SELECT this to build the model system prompt instead of maintaining a hand-written schema string. Reads table/column COMMENTs from the catalogue, and view descriptions from ai.object_doc.'),
+('enum_values','view',
+ 'Every legal ENUM value. Map spoken words onto these instead of inventing string literals.'),
+('v_failure_review','view',
+ 'What is going wrong, most-common first. Feed this back into aliases and intents.'),
+('ai','schema',
+ 'Voice-assistant support: entity resolution, conversation logs, and the self-describing schema prompt. Business data never lives here.');

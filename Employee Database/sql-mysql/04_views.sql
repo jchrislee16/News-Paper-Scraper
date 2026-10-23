@@ -19,7 +19,7 @@
 --   date_trunc('day',x)::date -> DATE(x)
 --   current_date - d     ->  DATEDIFF(CURRENT_DATE, d)
 --   IS DISTINCT FROM     ->  NOT (a <=> b)      (MySQL NULL-safe equality)
---   fn_profit_and_loss() ->  sp_profit_and_loss()  *** NOW A PROCEDURE ***
+--   fn_profit_and_loss() ->  fn_profit_and_loss()  *** NOW A PROCEDURE ***
 --
 -- Both helper functions are declared DETERMINISTIC so they can be created
 -- without log_bin_trust_function_creators. They are pure, so this is honest.
@@ -282,13 +282,13 @@ GROUP BY b.customer_name, b.tier;
 --
 -- MySQL functions cannot return a result set (RETURNS TABLE is a syntax error),
 -- so it is now a PROCEDURE. You CALL it and read the result:
---     CALL sp_profit_and_loss('2026-01-01','2026-12-31');
+--     CALL fn_profit_and_loss('2026-01-01','2026-12-31');
 -- You CANNOT filter it, join it, or build a view on top of it. Any such
 -- post-processing has to move into the caller (web/app.py does this).
 -- ---------------------------------------------------------------------------
 DELIMITER $$
 
-CREATE PROCEDURE sp_profit_and_loss(IN from_date DATE, IN to_date DATE)
+CREATE PROCEDURE fn_profit_and_loss(IN from_date DATE, IN to_date DATE)
 READS SQL DATA
 BEGIN
     WITH scope AS (

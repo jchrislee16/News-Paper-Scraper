@@ -57,13 +57,34 @@ CREATE TABLE customer_address (
     country_code  char(2) NOT NULL DEFAULT 'US',
     is_default    boolean NOT NULL DEFAULT false,
     created_at    timestamptz NOT NULL DEFAULT now(),
+
+    -- At most one default address per customer per kind, enforced via a UNIQUE
+    -- index on this key rather than a partial index, so the MySQL port in
+    -- sql-mysql/ can use the SAME column name and the SAME mechanism (MySQL has
+    -- no partial indexes, but does allow unlimited NULLs in a UNIQUE index).
+    --
+    -- The CASE spells both enum labels out instead of casting `kind` to text,
+    -- because enum_out() is only STABLE and a generated column needs an
+    -- IMMUTABLE expression. ADD A NEW address_type AND YOU MUST ADD AN ARM HERE
+    -- — the CHECK below is what stops that being a silent hole.
+    default_key   text GENERATED ALWAYS AS (
+        CASE WHEN is_default THEN customer_id::text || '/' ||
+             (CASE kind WHEN 'billing' THEN 'billing' WHEN 'shipping' THEN 'shipping' END)
+        END
+    ) STORED,
+
     -- lets orders prove an address belongs to the ordering customer (composite FK below)
-    UNIQUE (address_id, customer_id)
+    UNIQUE (address_id, customer_id),
+
+    -- If a future address_type has no arm in the CASE above, default_key silently
+    -- goes NULL and the uniqueness stops applying to it. This turns that into a
+    -- loud failure on the very first insert instead.
+    CONSTRAINT customer_address_default_key_complete
+        CHECK (is_default = (default_key IS NOT NULL))
 );
 
--- At most one default address per customer per kind.
 CREATE UNIQUE INDEX customer_address_one_default
-    ON customer_address (customer_id, kind) WHERE is_default;
+    ON customer_address (default_key);
 
 -- ---------------------------------------------------------------------------
 -- Product

@@ -172,10 +172,10 @@ QUERIES = {
 # Procedures now, not functions. Each takes the phrase plus a NULL min_score to
 # get the procedure's own default (MySQL has no default parameter values).
 RESOLVERS = {
-    "customer": ("sp_resolve_customer", True),
-    "product": ("sp_resolve_product", True),
-    "employee": ("sp_resolve_employee", True),
-    "order": ("sp_resolve_order", False),
+    "customer": ("ai_resolve_customer", True),
+    "product": ("ai_resolve_product", True),
+    "employee": ("ai_resolve_employee", True),
+    "order": ("ai_resolve_order", False),
 }
 
 
@@ -274,7 +274,7 @@ def profit_and_loss():
     # Was: SELECT section, line_item, amount FROM fn_profit_and_loss(%s,%s) ORDER BY line_no
     # A procedure cannot be filtered or ordered by the caller in SQL, so the
     # procedure orders internally and the line_no column is dropped here.
-    columns, rows = call_proc("sp_profit_and_loss", (start, end))
+    columns, rows = call_proc("fn_profit_and_loss", (start, end))
     if columns and columns[0] == "line_no":
         columns = columns[1:]
         rows = [r[1:] for r in rows]
@@ -283,7 +283,7 @@ def profit_and_loss():
         note="Cancelled and refunded orders are excluded from revenue and cost alike. "
              "Operating expenses are not modelled in this schema, so the bottom line is "
              "GROSS profit, not net income.",
-        columns=columns, rows=rows, sql="CALL sp_profit_and_loss(%s, %s)",
+        columns=columns, rows=rows, sql="CALL fn_profit_and_loss(%s, %s)",
     )
 
 

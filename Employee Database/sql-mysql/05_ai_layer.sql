@@ -83,7 +83,7 @@ DELIMITER $$
 --   0.75  name contains the phrase             <- replaces part of trigram tier
 --   0.70  whole name sounds like the phrase
 --   0.65  one WORD of the name matches or sounds like it
-CREATE PROCEDURE sp_resolve_customer(IN spoken VARCHAR(255), IN min_score DECIMAL(4,2))
+CREATE PROCEDURE ai_resolve_customer(IN spoken VARCHAR(255), IN min_score DECIMAL(4,2))
 READS SQL DATA
 BEGIN
     DECLARE q VARCHAR(255);
@@ -142,7 +142,7 @@ BEGIN
 END$$
 
 -- Same ladder, plus SKU as an exact tier.
-CREATE PROCEDURE sp_resolve_product(IN spoken VARCHAR(255), IN min_score DECIMAL(4,2))
+CREATE PROCEDURE ai_resolve_product(IN spoken VARCHAR(255), IN min_score DECIMAL(4,2))
 READS SQL DATA
 BEGIN
     DECLARE q VARCHAR(255);
@@ -190,11 +190,11 @@ BEGIN
                -- ROUND to 2dp: MATCH relevance is a FLOAT, and without this the
                -- score comes back as 0.4071286082267761, which breaks the
                -- (score, reason) contract's shape (Postgres returned numeric).
-               ROUND(LEAST(0.90, 0.30 + 0.15 * MATCH(p.name, p.brand, p.description)
+               ROUND(LEAST(0.90, 0.30 + 0.15 * MATCH(p.search_document)
                                                AGAINST (q IN NATURAL LANGUAGE MODE)), 2),
                'fulltext'
           FROM product p
-         WHERE q <> '' AND MATCH(p.name, p.brand, p.description) AGAINST (q IN NATURAL LANGUAGE MODE)
+         WHERE q <> '' AND MATCH(p.search_document) AGAINST (q IN NATURAL LANGUAGE MODE)
         UNION ALL
         SELECT p.product_id, p.name, p.sku, p.unit_price, p.stock_quantity, 0.70, 'sounds_like'
           FROM product p WHERE q <> '' AND SOUNDEX(p.name) = SOUNDEX(q)
@@ -227,7 +227,7 @@ BEGIN
      LIMIT 10;
 END$$
 
-CREATE PROCEDURE sp_resolve_employee(IN spoken VARCHAR(255), IN min_score DECIMAL(4,2))
+CREATE PROCEDURE ai_resolve_employee(IN spoken VARCHAR(255), IN min_score DECIMAL(4,2))
 READS SQL DATA
 BEGIN
     DECLARE q VARCHAR(255);
@@ -281,7 +281,7 @@ END$$
 -- "order A dash ten oh three" / "a1003" / "1003" all land on A-1003.
 -- This one ports almost exactly: MySQL 8 has REGEXP_REPLACE, and the squashed
 -- functional index from 03_indexes.sql serves it.
-CREATE PROCEDURE sp_resolve_order(IN spoken VARCHAR(255))
+CREATE PROCEDURE ai_resolve_order(IN spoken VARCHAR(255))
 READS SQL DATA
 BEGIN
     DECLARE q VARCHAR(255);

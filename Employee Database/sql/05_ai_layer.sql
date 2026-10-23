@@ -295,6 +295,26 @@ GROUP BY u.intent_name, u.sql_status
 ORDER BY occurrences DESC;
 
 -- ---------------------------------------------------------------------------
+-- Documentation for objects a COMMENT cannot reach.
+--
+-- Postgres does not need this: COMMENT ON VIEW / ON FUNCTION both work here.
+-- It exists because MySQL has NO way to comment a view (ALTER TABLE on a view
+-- fails, there is no ALTER VIEW ... COMMENT, and TABLE_COMMENT is the literal
+-- string 'VIEW'), so the port keeps view descriptions in a table of this name.
+--
+-- Carried in both trees so the two schemas expose the same object list and
+-- ai.schema_context reads the same way on either engine. On Postgres the real
+-- COMMENT wins and this is the fallback; on MySQL it is the only source for
+-- views. Populated by 06_comments.sql.
+-- ---------------------------------------------------------------------------
+CREATE TABLE ai.object_doc (
+    object_name  text NOT NULL,
+    object_type  text NOT NULL CHECK (object_type IN ('view','procedure','function','schema')),
+    purpose      text NOT NULL,
+    PRIMARY KEY (object_name, object_type)
+);
+
+-- ---------------------------------------------------------------------------
 -- 3. SELF-DESCRIPTION
 -- ---------------------------------------------------------------------------
 
@@ -306,8 +326,11 @@ CREATE VIEW ai.schema_context AS
 SELECT
     c.table_schema  AS schema_name,
     c.table_name,
-    obj_description(format('%I.%I', c.table_schema, c.table_name)::regclass, 'pg_class')
-                    AS table_purpose,
+    -- The real COMMENT when there is one, else ai.object_doc. The fallback is
+    -- what MySQL relies on entirely, so both engines answer this identically.
+    coalesce(
+        obj_description(format('%I.%I', c.table_schema, c.table_name)::regclass, 'pg_class'),
+        d.purpose)  AS table_purpose,
     c.ordinal_position,
     c.column_name,
     c.data_type,
@@ -317,6 +340,8 @@ SELECT
 FROM information_schema.columns c
 JOIN information_schema.tables t
      ON t.table_schema = c.table_schema AND t.table_name = c.table_name
+LEFT JOIN ai.object_doc d
+     ON d.object_name = c.table_name AND d.object_type = 'view'
 WHERE c.table_schema IN ('public', 'ai')
 ORDER BY c.table_schema, c.table_name, c.ordinal_position;
 

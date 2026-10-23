@@ -143,23 +143,23 @@ ALTER FUNCTION is_outstanding COMMENT
 -- CHANGED: was a FUNCTION you could SELECT FROM. It is a PROCEDURE now, so the
 -- call syntax in this comment had to change or the model would generate SQL
 -- that errors.
-ALTER PROCEDURE sp_profit_and_loss COMMENT
-  'PROFIT AND LOSS for a date range, returned as report lines (line_no, section, line_item, amount) rather than columns. Call as CALL sp_profit_and_loss(''2026-01-01'',''2026-12-31''). It is a PROCEDURE, not a function: you cannot SELECT FROM it, filter it, or join it — read the full result and post-process in the application. Cancelled and refunded orders are excluded from revenue AND cost, then shown as memo lines. IMPORTANT: operating expenses are not modelled anywhere in this schema, so the bottom line is GROSS PROFIT, not net income — never report it as net income or profit after expenses. Sales tax is a liability, not income.';
+ALTER PROCEDURE fn_profit_and_loss COMMENT
+  'PROFIT AND LOSS for a date range, returned as report lines (line_no, section, line_item, amount) rather than columns. Call as CALL fn_profit_and_loss(''2026-01-01'',''2026-12-31''). It is a PROCEDURE, not a function: you cannot SELECT FROM it, filter it, or join it — read the full result and post-process in the application. Cancelled and refunded orders are excluded from revenue AND cost, then shown as memo lines. IMPORTANT: operating expenses are not modelled anywhere in this schema, so the bottom line is GROSS PROFIT, not net income — never report it as net income or profit after expenses. Sales tax is a liability, not income.';
 
 -- CHANGED, and this one matters most. The Postgres comment promised "trigram
 -- typos", which this database can no longer do. Advertising a capability the
 -- resolver does not have would make the model over-trust a weak match.
-ALTER PROCEDURE sp_resolve_customer COMMENT
-  'Spoken phrase -> candidate customers, ranked (score, reason). Call as CALL sp_resolve_customer(''jon smyth'', NULL) — pass NULL for the default min_score of 0.35. Matches curated aliases, exact name, exact email, name prefix, name substring, SOUNDEX of the whole name, and SOUNDEX of the first/last word. IT DOES NOT DO TRIGRAM OR EDIT-DISTANCE MATCHING: MySQL has no similarity(), so scores are discrete tiers, not a continuous confidence. A misspelling that is not caught by prefix, substring or SOUNDEX returns NOTHING rather than a low score. Re-prompt the caller when the top two scores are close, and do not assume a miss means the customer does not exist.';
+ALTER PROCEDURE ai_resolve_customer COMMENT
+  'Spoken phrase -> candidate customers, ranked (score, reason). Call as CALL ai_resolve_customer(''jon smyth'', NULL) — pass NULL for the default min_score of 0.35. Matches curated aliases, exact name, exact email, name prefix, name substring, SOUNDEX of the whole name, and SOUNDEX of the first/last word. IT DOES NOT DO TRIGRAM OR EDIT-DISTANCE MATCHING: MySQL has no similarity(), so scores are discrete tiers, not a continuous confidence. A misspelling that is not caught by prefix, substring or SOUNDEX returns NOTHING rather than a low score. Re-prompt the caller when the top two scores are close, and do not assume a miss means the customer does not exist.';
 
-ALTER PROCEDURE sp_resolve_product COMMENT
-  'Spoken phrase -> candidate products, ranked (score, reason). Call as CALL sp_resolve_product(''wireless mouse'', NULL) — NULL means the default min_score of 0.30. Matches aliases, exact SKU, exact name, prefix, substring, FULLTEXT over name+brand+description for vague descriptions, SOUNDEX, and word match. Same limitation as sp_resolve_customer: no trigram/edit-distance tier, so misspellings can miss entirely.';
+ALTER PROCEDURE ai_resolve_product COMMENT
+  'Spoken phrase -> candidate products, ranked (score, reason). Call as CALL ai_resolve_product(''wireless mouse'', NULL) — NULL means the default min_score of 0.30. Matches aliases, exact SKU, exact name, prefix, substring, FULLTEXT over name+brand+description for vague descriptions, SOUNDEX, and word match. Same limitation as ai_resolve_customer: no trigram/edit-distance tier, so misspellings can miss entirely.';
 
-ALTER PROCEDURE sp_resolve_employee COMMENT
-  'Spoken phrase -> candidate employees, ranked (score, reason). Call as CALL sp_resolve_employee(''priya'', NULL) for the default min_score of 0.35. Same tiers and same no-trigram limitation as sp_resolve_customer.';
+ALTER PROCEDURE ai_resolve_employee COMMENT
+  'Spoken phrase -> candidate employees, ranked (score, reason). Call as CALL ai_resolve_employee(''priya'', NULL) for the default min_score of 0.35. Same tiers and same no-trigram limitation as ai_resolve_customer.';
 
-ALTER PROCEDURE sp_resolve_order COMMENT
-  'Spoken order reference in any shape ("A-1003", "a1003", "1003") -> matching orders. Call as CALL sp_resolve_order(''a1003''). This one ported from Postgres without loss; it is exact matching on a punctuation-stripped order number.';
+ALTER PROCEDURE ai_resolve_order COMMENT
+  'Spoken order reference in any shape ("A-1003", "a1003", "1003") -> matching orders. Call as CALL ai_resolve_order(''a1003''). This one ported from Postgres without loss; it is exact matching on a punctuation-stripped order number.';
 
 -- ---------------------------------------------------------------------------
 -- Views and the former `ai` schema. MySQL cannot comment a view, so these go

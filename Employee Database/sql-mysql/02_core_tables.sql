@@ -114,6 +114,11 @@ CREATE TABLE customer_address (
     -- lets orders prove an address belongs to the ordering customer (composite FK below)
     UNIQUE KEY customer_address_addr_cust (address_id, customer_id),
     UNIQUE KEY customer_address_one_default (default_key),
+    -- Mirrors the Postgres constraint of the same name: if `kind` ever gains a
+    -- value the key expression does not handle, default_key goes NULL and the
+    -- uniqueness silently stops applying. This makes that a loud failure.
+    CONSTRAINT customer_address_default_key_complete
+        CHECK (is_default = (default_key IS NOT NULL)),
     CONSTRAINT customer_address_customer_fk FOREIGN KEY (customer_id)
         REFERENCES customer(customer_id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
@@ -148,9 +153,13 @@ CREATE TABLE product (
     is_active      BOOLEAN NOT NULL DEFAULT TRUE,
     created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    -- NOTE: the Postgres original had a generated tsvector column here
-    -- (search_document) for "do we sell anything like a standing desk?".
-    -- MySQL has no tsvector; see the FULLTEXT index in 03_indexes.sql.
+    -- Full-text handle for "do we sell anything like a standing desk?".
+    -- Postgres stores a tsvector here; MySQL has no such type, so this holds the
+    -- same SOURCE TEXT and 03_indexes.sql puts a FULLTEXT index on it. Same
+    -- column name, same three inputs, same purpose — query with
+    -- MATCH(search_document) AGAINST (...) instead of @@.
+    search_document VARCHAR(1400) GENERATED ALWAYS AS
+        (CONCAT_WS(' ', COALESCE(name,''), COALESCE(brand,''), COALESCE(description,''))) STORED,
     CONSTRAINT product_category_fk FOREIGN KEY (category_id)
         REFERENCES product_category(category_id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
