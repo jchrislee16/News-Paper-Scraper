@@ -74,7 +74,10 @@ SELECT
     e.employee_id                     AS sales_rep_id,
     e.full_name                       AS sales_rep_name,
     COUNT(oi.order_item_id)           AS line_count,
-    COALESCE(SUM(oi.quantity), 0)     AS total_units,
+    -- CAST AS SIGNED: MySQL returns SUM() over an INT column as DECIMAL, so
+    -- without this a quantity of 2 reaches the front end as "2.00". Postgres
+    -- returns bigint here. These are counts, not money.
+    CAST(COALESCE(SUM(oi.quantity), 0) AS SIGNED) AS total_units,
     COALESCE(SUM(oi.line_total), 0)   AS items_subtotal,
     o.shipping_fee,
     o.tax_total,
@@ -158,7 +161,7 @@ SELECT
     p.reorder_level,
     (p.stock_quantity <= p.reorder_level) AS needs_restock,
     p.is_active,
-    COALESCE(SUM(CASE WHEN counts_as_revenue(o.status) THEN oi.quantity END), 0)   AS units_sold,
+    CAST(COALESCE(SUM(CASE WHEN counts_as_revenue(o.status) THEN oi.quantity END), 0) AS SIGNED) AS units_sold,
     COALESCE(SUM(CASE WHEN counts_as_revenue(o.status) THEN oi.line_total END), 0) AS revenue,
     -- Cost and margin use the order_item SNAPSHOT, never product.unit_cost, so
     -- historical profit does not move when supplier pricing changes.
@@ -201,7 +204,7 @@ SELECT
     DATE(o.ordered_at)                    AS sales_day,
     COUNT(DISTINCT o.order_id)            AS order_count,
     COALESCE(SUM(oi.line_total), 0)       AS revenue,
-    COALESCE(SUM(oi.quantity), 0)         AS units
+    CAST(COALESCE(SUM(oi.quantity), 0) AS SIGNED) AS units
 FROM `order` o
 LEFT JOIN order_item oi ON oi.order_id = o.order_id
 WHERE counts_as_revenue(o.status)
