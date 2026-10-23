@@ -14,3 +14,6 @@ venv/
 
 # OS
 .DS_Store
+
+# Deploy target (host, user, key path) — never commit
+.env.deploy

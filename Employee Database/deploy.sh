@@ -8,9 +8,15 @@
 # Override with env vars: VM_HOST, VM_USER, VM_KEY, REMOTE_DIR, DB_NAME
 set -euo pipefail
 
-VM_HOST="${VM_HOST:-20.151.118.114}"
-VM_USER="${VM_USER:-azureuser}"
-VM_KEY="${VM_KEY:-$HOME/Desktop/News-Paper-Scraper/free-server_key.pem}"
+# Connection details come from the environment, never from this file: `main` is
+# served by GitHub Pages, so anything committed here is public, and a live host
+# plus its SSH user is free reconnaissance. Keep them in an untracked file and
+# source it, e.g. ~/.employee-db-deploy:
+#     export VM_HOST=... VM_USER=... VM_KEY=~/path/to/key.pem
+
+VM_HOST="${VM_HOST:?set VM_HOST (see the note above) — refusing to guess a deploy target}"
+VM_USER="${VM_USER:?set VM_USER}"
+VM_KEY="${VM_KEY:?set VM_KEY to your private key path}"
 REMOTE_DIR="${REMOTE_DIR:-/home/$VM_USER/employee-database}"
 DB_NAME="${DB_NAME:-employee_db}"
 LOCAL_DIR="$(cd "$(dirname "$0")" && pwd)"

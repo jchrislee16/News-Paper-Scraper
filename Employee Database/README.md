@@ -165,10 +165,10 @@ CREATE USER alexa_bot LOGIN PASSWORD '...';  GRANT ai_assistant TO alexa_bot;
 
 ## Deployment
 
-Live on the Azure VM at `20.151.118.114`, database `employee_db`, PostgreSQL listening on
+Live on an Azure VM (host kept out of this repo — see deploy.sh), database `employee_db`, PostgreSQL listening on
 **localhost only** — not reachable from the internet. Reach it over SSH, or via a tunnel:
 
 ```bash
-ssh -i free-server_key.pem -L 5433:localhost:5432 azureuser@20.151.118.114
+ssh -i "$VM_KEY" -L 5433:localhost:5432 "$VM_USER@$VM_HOST"
 psql -h localhost -p 5433 -d employee_db
 ```
