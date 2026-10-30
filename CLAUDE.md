@@ -61,8 +61,15 @@ tree.** The short version:
   change in `02_core_tables.sql` must be mirrored there.
 - `sql_mode` is set by `load-mysql.sh` via `--init-command`, not inside a `.sql` file —
   each file runs in its own `mysql` process, so a `SET SESSION` would cover one file only.
-- `deploy-mysql.sh` **works and has been run**. The VM now runs MySQL 8.0.46 AND
-  PostgreSQL 14.24 side by side, each with its own `employee_db`.
+- **The VM is MySQL-only as of 2026-10-29.** `deploy-mysql.sh` is the deploy path;
+  `./deploy.sh` (Postgres) now refuses to run and tells you why. PostgreSQL 14.24 is
+  still INSTALLED there but stopped and disabled — the data directory (69 MB) and a
+  verified `pg_dump` both remain, so `sudo systemctl enable --now postgresql` brings
+  it back. It was retired for single-source-of-truth, NOT for memory: measured by
+  PSS it only cost 3 MB (an earlier RSS reading of 57 MB double-counted shared
+  pages), and stopping it freed ~18 MB.
+  - `sql/` is still maintained and parity-checked, but it is the dev / cross-check
+    tree now, not the deployed one.
   - MySQL is bound to `127.0.0.1`; reach it with `web/tunnel-mysql.sh`, which
     forwards local **3307** -> VM 3306 and starts the viewer against it. Local port
     3307, not 3306, so it cannot be mistaken for a local MySQL.

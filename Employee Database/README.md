@@ -194,10 +194,29 @@ CREATE USER alexa_bot LOGIN PASSWORD '...';  GRANT ai_assistant TO alexa_bot;
 
 ## Deployment
 
-Live on an Azure VM (host kept out of this repo — see deploy.sh), database `employee_db`, PostgreSQL listening on
-**localhost only** — not reachable from the internet. Reach it over SSH, or via a tunnel:
+Live on an Azure VM (host kept out of this repo — see `deploy.sh`), database
+`employee_db`, **MySQL 8.0.46**, listening on **localhost only** — not reachable
+from the internet. Reach it with the tunnel script:
 
 ```bash
-ssh -i "$VM_KEY" -L 5433:localhost:5432 "$VM_USER@$VM_HOST"
-psql -h localhost -p 5433 -d employee_db
+source .env.deploy
+cd web && ./tunnel-mysql.sh --tunnel          # local 3307 -> VM 3306
+mysql -h 127.0.0.1 -P 3307 -u empdb_app -p employee_db
 ```
+
+**The VM no longer runs PostgreSQL.** It did until 2026-10-29; the service is now
+stopped and disabled so there is one unambiguous live database rather than two
+copies of the same data in two engines. The data directory and a verified
+`pg_dump` are both still on the box, so it is one command to bring back:
+
+```bash
+sudo systemctl enable --now postgresql        # on the VM
+```
+
+Backups: `~/db-backups/employee_db-final-*.dump` on the VM, with a copy pulled to
+`~/Desktop/News-Paper-Scraper-Archive-2026-09-03/vm-postgres-final/` (248 TOC
+entries, roles included via `pg_dumpall --globals-only`).
+
+`sql/` is still maintained and still parity-checked — it is the development and
+cross-checking tree now, not the deployed one. `./deploy.sh` has no live target
+until PostgreSQL is re-enabled, and says so rather than failing obscurely.

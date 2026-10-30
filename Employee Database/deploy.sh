@@ -29,6 +29,16 @@ case "${1:-}" in
     ;;
 esac
 
+# The VM stopped running PostgreSQL on 2026-10-29; MySQL is the live database
+# there now (see README). Without this check the reload step fails somewhere
+# inside load.sh with a connection error that looks like a network problem.
+if ! "${SSH[@]}" 'systemctl is-active --quiet postgresql'; then
+    echo "!!! PostgreSQL is not running on $VM_HOST." >&2
+    echo "    The VM was switched to MySQL; use ./deploy-mysql.sh instead." >&2
+    echo "    To bring PostgreSQL back:  ssh ... 'sudo systemctl enable --now postgresql'" >&2
+    exit 1
+fi
+
 echo "==> pushing SQL to $VM_USER@$VM_HOST:$REMOTE_DIR"
 "${SSH[@]}" "mkdir -p '$REMOTE_DIR'"
 scp -q -i "$VM_KEY" -o StrictHostKeyChecking=accept-new \
