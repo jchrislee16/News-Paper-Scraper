@@ -8,15 +8,19 @@
 # Override with env vars: VM_HOST, VM_USER, VM_KEY, REMOTE_DIR, DB_NAME,
 #                         MYSQL_USER, MYSQL_PASSWORD
 #
-# *** NOT YET RUN AGAINST THE VM. ***
-# The VM runs PostgreSQL 14.24, not MySQL. This script assumes
-# a MySQL 8.0+ server is installed and reachable there and that $MYSQL_USER can
-# CREATE DATABASE. Until that is true, this will fail at the load step. Check
-# first:
-#     ssh -i "$VM_KEY" "$VM_USER@$VM_HOST" 'mysql --version'
+# The VM now runs MySQL 8.0.46 alongside PostgreSQL 14.24, and this script has
+# been run successfully against it. MYSQL_USER must be able to CREATE DATABASE;
+# MySQL 8's root uses auth_socket, so it cannot be used remotely — use the
+# dedicated empdb_admin account (credentials in the untracked .env.deploy).
 #
-# Note also that the server still holds the Postgres employee_db. Deploying this
-# does not remove it; decide deliberately whether to keep both or drop one.
+# The server holds BOTH databases: the Postgres employee_db and the MySQL one.
+# This script only touches the MySQL side.
+#
+# MEMORY: the VM has 894 MB and no spare headroom. /etc/mysql/mysql.conf.d/
+# zz-small-vm.cnf trims the buffer pool to 64M and turns performance_schema off,
+# which took mysqld from 248 MB to ~145 MB idle. A 2 GB swapfile exists as a
+# backstop so a MySQL spike cannot get PostgreSQL OOM-killed. Do not raise those
+# limits without checking `free -h` on the box first.
 set -euo pipefail
 
 # Connection details come from the environment, never from this file: `main` is

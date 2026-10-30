@@ -61,8 +61,20 @@ tree.** The short version:
   change in `02_core_tables.sql` must be mirrored there.
 - `sql_mode` is set by `load-mysql.sh` via `--init-command`, not inside a `.sql` file —
   each file runs in its own `mysql` process, so a `SET SESSION` would cover one file only.
-- `deploy-mysql.sh` exists but **has never been run**: the VM runs PostgreSQL 14.24, not
-  MySQL. It checks for a `mysql` client and aborts if absent.
+- `deploy-mysql.sh` **works and has been run**. The VM now runs MySQL 8.0.46 AND
+  PostgreSQL 14.24 side by side, each with its own `employee_db`.
+  - MySQL is bound to `127.0.0.1`; reach it with `web/tunnel-mysql.sh`, which
+    forwards local **3307** -> VM 3306 and starts the viewer against it. Local port
+    3307, not 3306, so it cannot be mistaken for a local MySQL.
+  - Accounts: `root` is `auth_socket` (sudo on the box only), `empdb_admin` loads
+    schemas, `empdb_app` is what the viewer uses (holds `app_service`). Passwords
+    are in untracked `.env.deploy`.
+  - **The VM has 894 MB RAM and no headroom.** MySQL at stock settings sat at 248 MB
+    RSS with only 229 MB free, one allocation away from the OOM killer taking out
+    PostgreSQL. Mitigated by a 2 GB swapfile (`/swapfile`, in `/etc/fstab`,
+    `vm.swappiness=10`) and `/etc/mysql/mysql.conf.d/zz-small-vm.cnf`
+    (buffer pool 64M, `performance_schema=OFF`, `max_connections=25`) which brought
+    it to ~145 MB idle / ~207 MB under load. Check `free -h` before raising any of it.
 - The `ai` schema holds entity resolution, the conversation log, and `ai.schema_context`
   — a view that generates the model's schema prompt from live `COMMENT ON` metadata.
   **Documenting a column is how you teach the assistant about it**, so keep

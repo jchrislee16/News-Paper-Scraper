@@ -19,6 +19,35 @@ Verified on PostgreSQL 14 (local) and PostgreSQL 14.24 (Azure VM).
 > ./load-mysql.sh        # MySQL
 > ```
 
+## Running against the VM's MySQL
+
+The VM runs **MySQL 8.0.46 and PostgreSQL 14.24 side by side**. MySQL is bound to
+`127.0.0.1`, so port 3306 is not reachable from the internet — the viewer reaches
+it over an SSH tunnel, the same way the PostgreSQL instance is reached:
+
+```bash
+source .env.deploy                      # VM_HOST/USER/KEY + MySQL credentials
+cd "Employee Database"
+./deploy-mysql.sh                       # push the schema and rebuild it there
+cd web && ./tunnel-mysql.sh             # tunnel + viewer on http://127.0.0.1:5002
+./tunnel-mysql.sh --tunnel              # just the tunnel, no viewer
+```
+
+The tunnel listens on local port **3307**, not 3306, so it cannot be confused
+with a MySQL running on your own machine — pointing the viewer at the wrong one
+and not noticing is an easy way to verify the wrong database.
+
+Three accounts exist on the VM's MySQL:
+
+| Account | Purpose |
+|---|---|
+| `root@localhost` | `auth_socket` only — reachable via `sudo mysql` on the box, never remotely |
+| `empdb_admin` | schema loads (`deploy-mysql.sh`); has `CREATE DATABASE` |
+| `empdb_app` | what the viewer connects as; holds the `app_service` role, no DELETE |
+
+Credentials live in the untracked `.env.deploy` at the repo root. Nothing in the
+repo contains a password or the VM's address.
+
 ## Quick start
 
 ```bash

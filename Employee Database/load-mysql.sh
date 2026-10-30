@@ -23,9 +23,13 @@ MY=(mysql
     --user="${MYSQL_USER:-root}"
     --host="${MYSQL_HOST:-localhost}"
     --init-command="SET NAMES utf8mb4; SET SESSION sql_mode='STRICT_ALL_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'")
+# MYSQL_PWD, not --password: a password on the command line is visible in `ps`
+# to every other user on the machine, and the client warns about it on every
+# invocation. Exporting it keeps it out of the process list.
 if [[ -n "${MYSQL_PASSWORD:-}" ]]; then
-    MY+=(--password="$MYSQL_PASSWORD")
+    export MYSQL_PWD="$MYSQL_PASSWORD"
 fi
+MY+=(--port="${MYSQL_PORT:-3306}")
 
 echo "==> target: MySQL database $DB_NAME on ${MYSQL_HOST:-localhost} (recreated)"
 "${MY[@]}" -e "DROP DATABASE IF EXISTS \`$DB_NAME\`;

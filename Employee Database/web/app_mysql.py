@@ -44,6 +44,11 @@ from flask import Flask, jsonify, render_template, request
 
 DB_CONFIG = {
     "host": os.environ.get("MYSQL_HOST", "localhost"),
+    # Needed for the remote case: 3306 on the VM is bound to 127.0.0.1, so the
+    # app reaches it through an SSH tunnel on a different LOCAL port
+    # (web/tunnel-mysql.sh opens 3307). Without this the app could only ever
+    # talk to a MySQL on the same machine.
+    "port": int(os.environ.get("MYSQL_PORT", "3306")),
     "user": os.environ.get("MYSQL_USER", "root"),
     "password": os.environ.get("MYSQL_PASSWORD", ""),
     "database": os.environ.get("MYSQL_DB", "employee_db"),
@@ -320,5 +325,6 @@ def health():
 
 
 if __name__ == "__main__":
-    print(f"==> http://127.0.0.1:{PORT}  (MySQL database: {DB_CONFIG['database']})")
+    where = "local" if DB_CONFIG["host"] in ("localhost", "127.0.0.1") and DB_CONFIG["port"] == 3306 else f"{DB_CONFIG['host']}:{DB_CONFIG['port']}"
+    print(f"==> http://127.0.0.1:{PORT}  (MySQL {DB_CONFIG['database']} @ {where}, user {DB_CONFIG['user']})")
     app.run(host="127.0.0.1", port=PORT, debug=True)
