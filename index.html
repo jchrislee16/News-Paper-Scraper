@@ -67,6 +67,12 @@
            font-size:12px; background:var(--panel); }
   a { color:var(--accent); }
   .err { color:var(--neg); }
+  .mode { display:inline-flex; align-items:center; gap:6px; font-size:12px;
+          padding:4px 9px; border-radius:999px; border:1px solid var(--line); }
+  .mode .dot { width:7px; height:7px; border-radius:50%; background:var(--muted); }
+  .mode.live     { border-color:var(--pos); color:var(--pos); }
+  .mode.live .dot{ background:var(--pos); }
+  .mode.snap     { border-color:var(--muted); color:var(--muted); }
 </style>
 </head>
 <body>
@@ -82,6 +88,7 @@
   <div class="toolbar">
     <input type="search" id="filter" placeholder="Filter rows…" aria-label="Filter rows">
     <span class="count" id="count"></span>
+    <span class="mode snap" id="mode" title=""><span class="dot"></span><span id="modetext">…</span></span>
   </div>
   <p class="note" id="note"></p>
   <div class="tablebox"><table>
@@ -185,22 +192,97 @@
     head(); render();
   }
 
-  function load(key, btn) {
+  // Live and snapshot return the same payload shape {title,note,columns,rows,sql},
+  // so everything downstream of here is identical either way.
+  function urlsFor(key, plRange) {
+    if (plRange) {
+      return API
+        ? [API + "/api/pl?start=" + plRange[0] + "&end=" + plRange[1], "data/" + key + ".json"]
+        : ["data/" + key + ".json"];
+    }
+    return API ? [API + "/api/data/" + key, "data/" + key + ".json"]
+               : ["data/" + key + ".json"];
+  }
+
+  function load(key, btn, plRange) {
     Array.prototype.forEach.call(document.querySelectorAll("#nav button"),
       function (b) { b.setAttribute("aria-pressed", b === btn ? "true" : "false"); });
     $("note").textContent = "loading…";
-    fetch("data/" + key + ".json")
-      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
-      .then(function (p) { show(p, key); })
-      .catch(function (e) {
-        $("note").innerHTML = '<span class="err">Could not load ' + key +
-          ".json (" + e.message + ").</span>";
-        $("body").textContent = ""; $("head").textContent = ""; $("count").textContent = "";
+    var urls = urlsFor(key, plRange);
+
+    // Try live, then the snapshot. A tunnel that dies mid-session downgrades
+    // this one view rather than blanking the page.
+    (function attempt(i) {
+      withTimeout(urls[i], 12000)
+        .then(function (r) { return r.json(); })
+        .then(function (p) {
+          if (i > 0 && API) { API = null; setMode(false, "Live API stopped responding; showing the snapshot."); }
+          show(p, key);
+        })
+        .catch(function (e) {
+          if (i + 1 < urls.length) return attempt(i + 1);
+          $("note").innerHTML = '<span class="err">Could not load ' + key +
+            " (" + e.message + ").</span>";
+          $("body").textContent = ""; $("head").textContent = ""; $("count").textContent = "";
+        });
+    })(0);
+  }
+
+  // --- live API first, committed snapshot as the fallback -------------------
+  // api-config.json carries the current tunnel hostname and is rewritten by the
+  // VM whenever the tunnel rotates. If it is null, stale, or the host does not
+  // answer within the timeout, everything silently reads the snapshot instead.
+  // That is the whole point: a quick-tunnel URL is ephemeral, and a page that
+  // breaks every time it changes is worse than one that is a few minutes behind.
+  var API = null;                       // null => snapshot mode
+
+  function withTimeout(url, ms) {
+    return new Promise(function (resolve, reject) {
+      var done = false;
+      var t = setTimeout(function () { if (!done) { done = true; reject(new Error("timeout")); } }, ms);
+      fetch(url).then(function (r) {
+        if (done) return;
+        done = true; clearTimeout(t);
+        if (!r.ok) reject(new Error(r.status)); else resolve(r);
+      }).catch(function (e) { if (!done) { done = true; clearTimeout(t); reject(e); } });
+    });
+  }
+
+  function setMode(live, detail) {
+    var el = $("mode");
+    el.className = "mode " + (live ? "live" : "snap");
+    $("modetext").textContent = live ? "live database" : "snapshot";
+    el.title = detail || "";
+  }
+
+  // Resolve where to read from, then hand back a manifest either way.
+  function resolve() {
+    return withTimeout("api-config.json?t=" + Date.now(), 6000)
+      .then(function (r) { return r.json(); })
+      .then(function (cfg) {
+        if (!cfg.api_base) throw new Error("no api_base");
+        // Confirm it actually answers before committing to live mode.
+        return withTimeout(cfg.api_base + "/api/manifest", 6000)
+          .then(function (r) { return r.json(); })
+          .then(function (m) {
+            API = cfg.api_base.replace(/\/$/, "");
+            setMode(true, "Querying MySQL through " + API);
+            return m;
+          });
+      })
+      .catch(function () {
+        return withTimeout("data/manifest.json", 8000)
+          .then(function (r) { return r.json(); })
+          .then(function (m) {
+            setMode(false, "The live API is unreachable, so this is the committed "
+                         + "snapshot in data/*.json. Figures are still computed by the "
+                         + "database's own views \u2014 just exported earlier.");
+            return m;
+          });
       });
   }
 
-  fetch("data/manifest.json")
-    .then(function (r) { return r.json(); })
+  resolve()
     .then(function (m) {
       var s = $("stats");
       (m.schema || []).forEach(function (t) {
@@ -230,15 +312,17 @@
         var b = document.createElement("button");
         b.textContent = "P&L · " + p.label;
         b.title = "Profit and loss, " + p.range[0] + " to " + p.range[1];
-        b.addEventListener("click", function () { load("pl-" + p.key, b); });
+        b.addEventListener("click", function () { load("pl-" + p.key, b, p.range); });
         nav.appendChild(b);
       });
       if (first) first.click();
     })
     .catch(function () {
-      $("note").innerHTML = '<span class="err">Could not load data/manifest.json. ' +
-        "Run <code>Employee Database/web/export_static.py</code> and commit " +
-        "<code>data/</code>.</span>";
+      setMode(false, "No data source reachable.");
+      $("note").innerHTML = '<span class="err">Neither the live API nor ' +
+        "<code>data/manifest.json</code> could be reached. If this is a fresh " +
+        "checkout, run <code>Employee Database/web/export_static.py</code> and " +
+        "commit <code>data/</code>.</span>";
     });
 
   var t;

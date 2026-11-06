@@ -36,11 +36,16 @@ PORTING NOTES vs app.py:
   that used to live in the SQL moved here. See call_proc().
 """
 import os
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 import pymysql
 from flask import Flask, jsonify, render_template, request
+
+try:
+    from flask_cors import CORS
+except ImportError:         # local dev without flask-cors still works
+    CORS = None
 
 DB_CONFIG = {
     "host": os.environ.get("MYSQL_HOST", "localhost"),
@@ -61,6 +66,21 @@ PORT = int(os.environ.get("PORT", "5001"))
 MAX_EXECUTION_MS = int(os.environ.get("MAX_EXECUTION_MS", "5000"))
 
 app = Flask(__name__)
+
+# The published page is served from jchrislee.com but calls this API on a
+# trycloudflare.com host, so every request is cross-origin and the browser
+# blocks it without these headers. Scoped to the two origins that actually host
+# the page plus localhost for development -- a wildcard would let any site on
+# the internet read the API, and there is no reason to allow that even for
+# read-only data.
+if CORS:
+    CORS(app, resources={r"/api/*": {"origins": [
+        "https://jchrislee.com",
+        "https://www.jchrislee.com",
+        "https://jchrislee16.github.io",
+        "http://127.0.0.1:8078",
+        "http://localhost:8078",
+    ]}})
 
 # key -> (button label, one-line explanation, SQL)
 QUERIES = {
@@ -316,6 +336,48 @@ def resolve():
             "matching, so a typo that misses every tier returns nothing rather than a low score.")
     return jsonify(title=f'Heard: "{phrase}"', note=note, columns=columns, rows=rows,
                    sql=f"CALL {proc}(%s, NULL)" if takes_min_score else f"CALL {proc}(%s)")
+
+
+@app.route("/api/manifest")
+def manifest():
+    """The dataset list, schema shape and P&L presets.
+
+    Mirrors what export_static.py writes to data/manifest.json, so the static
+    page can run in live mode without reading any committed snapshot. Keep the
+    two in step: the page reads whichever it gets and cannot tell them apart.
+    """
+    tables = ("employee", "customer", "customer_address", "product_category",
+              "product", "order", "order_item", "order_status_history")
+    schema = []
+    conn = connect()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT TABLE_NAME, COUNT(*) FROM information_schema.COLUMNS
+                     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN (%s)
+                     GROUP BY TABLE_NAME ORDER BY TABLE_NAME"""
+                % ",".join(["%s"] * len(tables)), tables)
+            cols = {t: c for t, c in cur.fetchall()}
+            for t in sorted(cols):
+                cur.execute("SELECT COUNT(*) FROM `%s`" % t)   # name from a fixed tuple
+                schema.append({"table": t, "columns": cols[t], "rows": cur.fetchone()[0]})
+            cur.execute("SELECT DATE(MIN(ordered_at)), DATE(MAX(ordered_at)) FROM `order`")
+            lo, hi = cur.fetchone()
+    finally:
+        conn.close()
+    # Windows end at the newest order, not at today: the data is generated and
+    # may trail real time, and a window with no orders in it reads as a bug.
+    return jsonify(
+        datasets=[{"key": k, "label": v[0], "note": v[1]} for k, v in QUERIES.items()],
+        pl=[{"key": "all", "label": "All time", "range": ["2000-01-01", "2099-12-31"]},
+            {"key": "ytd", "label": "This year",
+             "range": [f"{hi.year}-01-01", str(hi)]},
+            {"key": "90d", "label": "Last 90 days",
+             "range": [str(hi - timedelta(days=90)), str(hi)]},
+            {"key": "30d", "label": "Last 30 days",
+             "range": [str(hi - timedelta(days=30)), str(hi)]}],
+        period={"start": str(lo), "end": str(hi)},
+        schema=schema, live=True)
 
 
 @app.route("/api/health")

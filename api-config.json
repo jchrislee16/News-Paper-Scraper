@@ -1,0 +1,5 @@
+{
+  "_comment": "Where the live API is. REWRITTEN BY THE VM on every tunnel restart (Employee Database/web/publish_api_url.sh). A Cloudflare quick-tunnel hostname is ephemeral, so this file is the rendezvous point between a static page and a moving backend. api_base null or unreachable => the page falls back to the committed data/*.json snapshot, which is why it never shows a broken state.",
+  "api_base": "https://intellectual-pitch-fires-programming.trycloudflare.com",
+  "updated_at": "2026-11-06T02:32:25+00:00"
+}
