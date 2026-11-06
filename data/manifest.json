@@ -1,0 +1,163 @@
+{
+ "datasets": [
+  {
+   "key": "orders",
+   "label": "Orders",
+   "note": "One row per order, money already totalled (v_order_summary).",
+   "rows": 1217
+  },
+  {
+   "key": "customers",
+   "label": "Customers",
+   "note": "Lifetime value and recency per customer; cancelled and refunded excluded (v_customer_360).",
+   "rows": 408
+  },
+  {
+   "key": "products",
+   "label": "Products",
+   "note": "Catalogue with units sold and revenue (v_product_performance).",
+   "rows": 94
+  },
+  {
+   "key": "employees",
+   "label": "Employees",
+   "note": "Sales attributed to each rep (v_employee_sales).",
+   "rows": 36
+  },
+  {
+   "key": "restock",
+   "label": "Needs restock",
+   "note": "Active products at or below their reorder level.",
+   "rows": 42
+  },
+  {
+   "key": "sales",
+   "label": "Daily sales",
+   "note": "Revenue per day; cancelled and refunded excluded (v_daily_sales).",
+   "rows": 642
+  },
+  {
+   "key": "balance",
+   "label": "Balance detail (A/R)",
+   "note": "Every unpaid invoice with its aging bucket (v_customer_balance). Unpaid = status 'pending'.",
+   "rows": 133
+  },
+  {
+   "key": "aging",
+   "label": "A/R aging summary",
+   "note": "Open balances per customer, bucketed by age (v_ar_aging).",
+   "rows": 113
+  },
+  {
+   "key": "margin",
+   "label": "Profit by product",
+   "note": "Where the gross profit came from \u2014 revenue, COGS and margin per product.",
+   "rows": 90
+  },
+  {
+   "key": "inventory",
+   "label": "Inventory value",
+   "note": "Stock on hand carried at cost \u2014 the asset-side figure (v_product_performance).",
+   "rows": 90
+  },
+  {
+   "key": "aliases",
+   "label": "Voice aliases",
+   "note": "What people actually say out loud, mapped to rows (ai_entity_alias).",
+   "rows": 12
+  },
+  {
+   "key": "intents",
+   "label": "Intents",
+   "note": "Questions the assistant is meant to answer (ai_intent).",
+   "rows": 9
+  },
+  {
+   "key": "utterances",
+   "label": "Conversation log",
+   "note": "Every spoken turn: what was heard, what SQL it became, how it went (ai_utterance).",
+   "rows": 3
+  }
+ ],
+ "pl": [
+  {
+   "key": "all",
+   "label": "All time",
+   "range": [
+    "2000-01-01",
+    "2099-12-31"
+   ]
+  },
+  {
+   "key": "ytd",
+   "label": "This year",
+   "range": [
+    "2026-01-01",
+    "2026-11-05"
+   ]
+  },
+  {
+   "key": "90d",
+   "label": "Last 90 days",
+   "range": [
+    "2026-08-07",
+    "2026-11-05"
+   ]
+  },
+  {
+   "key": "30d",
+   "label": "Last 30 days",
+   "range": [
+    "2026-10-06",
+    "2026-11-05"
+   ]
+  }
+ ],
+ "generated_from": "employee_db",
+ "period": {
+  "start": "2022-11-30",
+  "end": "2026-11-05"
+ },
+ "schema": [
+  {
+   "table": "customer",
+   "columns": 12,
+   "rows": 408
+  },
+  {
+   "table": "customer_address",
+   "columns": 13,
+   "rows": 729
+  },
+  {
+   "table": "employee",
+   "columns": 13,
+   "rows": 36
+  },
+  {
+   "table": "order",
+   "columns": 19,
+   "rows": 1217
+  },
+  {
+   "table": "order_item",
+   "columns": 9,
+   "rows": 3055
+  },
+  {
+   "table": "order_status_history",
+   "columns": 7,
+   "rows": 1217
+  },
+  {
+   "table": "product",
+   "columns": 15,
+   "rows": 94
+  },
+  {
+   "table": "product_category",
+   "columns": 4,
+   "rows": 6
+  }
+ ]
+}

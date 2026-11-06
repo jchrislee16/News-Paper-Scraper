@@ -3,6 +3,9 @@
 A MySQL / PostgreSQL schema for **Employee : Customer : Order : Product**, built to
 sit underneath an Alexa-style voice assistant.
 
+**Live data explorer: https://jchrislee.com/News-Paper-Scraper/** — browse the
+orders, customers, margin, A/R aging and profit & loss, sortable and filterable.
+
 **There is one schema.** It lives in [`Employee Database/`](Employee%20Database/).
 
 ```bash
@@ -41,11 +44,32 @@ which move with the catalogue and with supplier pricing.
 
 Those two are what make revenue, margin, COGS, and A/R answerable at all.
 
+## The published page
+
+`index.html` at the repo root is the public frontend, served by GitHub Pages.
+Pages is static-only, so it cannot run `web/app_mysql.py`; instead
+`Employee Database/web/export_static.py` snapshots every dataset the Flask
+viewer serves into `data/*.json`, and the page renders them with the same
+tables, sorting and filtering.
+
+```bash
+cd "Employee Database/web"
+python3 export_static.py        # rewrites ../../data/*.json
+cd ../.. && git add data && git commit && git push
+```
+
+Re-run it after any schema or data change. A snapshot rather than a live API on
+purpose: exposing the viewer through a Cloudflare quick tunnel would mean the
+published page breaks whenever that ephemeral URL rotates, and this is generated
+test data that does not need to be current to the second. For live, arbitrary
+date ranges and the fuzzy resolvers, run the Flask viewer locally
+(`web/run-mysql.sh`, or `web/tunnel-mysql.sh` against the VM).
+
 ## History
 
 The previous project — a personalized news feed (GitHub Pages frontend +
-Flask/TF-IDF backend on an Azure VM) — is preserved in full at tag
-**`archive/v1`**:
+Flask/TF-IDF backend on an Azure VM) — was served at this URL until
+2026-11-05 and is preserved in full at tag **`archive/v1`**:
 
     git show archive/v1:CLAUDE.md
     git checkout archive/v1

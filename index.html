@@ -1,183 +1,251 @@
-<!DOCTYPE html>
-<html>
-
+<!doctype html>
+<html lang="en">
 <head>
-  <!-- Basic -->
-  <meta charset="utf-8" />
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <!-- Mobile Metas -->
-  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
-  <!-- Site Metas -->
-  <meta name="keywords" content="" />
-  <meta name="description" content="" />
-  <meta name="author" content="" />
-  <link rel="shortcut icon" href="images/favicon.png" type="">
-
-  <title> New Trend News </title>
-
-  <!-- bootstrap core css -->
-  <link rel="stylesheet" type="text/css" href="css/bootstrap.css" />
-
-  <!--owl slider stylesheet -->
-  <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/OwlCarousel2/2.3.4/assets/owl.carousel.min.css" />
-  <!-- nice select  -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-nice-select/1.1.0/css/nice-select.min.css" integrity="sha512-CruCP+TD3yXzlvvijET8wV5WxxEh5H8P4cmz0RFbKK6FlZ2sYl3AEsKlLPHbniXKSrDdFewhbmBK5skbdsASbQ==" crossorigin="anonymous" />
-  <!-- font awesome style -->
-  <link href="css/font-awesome.min.css" rel="stylesheet" />
-
-  <!-- Custom styles for this template -->
-  <link href="css/style.css" rel="stylesheet" />
-  <!-- responsive style -->
-  <link href="css/responsive.css" rel="stylesheet" />
-
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Employee Database — data explorer</title>
+<meta name="description" content="Interactive browser for an Employee : Customer : Order : Product schema — orders, customers, margin, A/R aging and a profit &amp; loss statement.">
+<style>
+  :root {
+    --bg:#f7f7f8; --panel:#fff; --ink:#16181d; --muted:#6b7280; --line:#e3e5e9;
+    --accent:#1f6feb; --accent-soft:#e8f0fe; --neg:#c0392b; --pos:#1a7f37;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14161a; --panel:#1b1e24; --ink:#e6e8ec; --muted:#9aa3b2;
+            --line:#2b2f37; --accent:#5b9bff; --accent-soft:#1d2c4a;
+            --neg:#ff7b6b; --pos:#56d364; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  header { padding:22px 20px 16px; border-bottom:1px solid var(--line); background:var(--panel); }
+  .wrap { max-width:1500px; margin:0 auto; }
+  h1 { margin:0 0 4px; font-size:19px; letter-spacing:-.01em; }
+  .sub { color:var(--muted); font-size:13px; }
+  .stats { display:flex; flex-wrap:wrap; gap:14px; margin-top:12px; }
+  .stat { background:var(--bg); border:1px solid var(--line); border-radius:7px;
+          padding:7px 11px; font-size:12px; }
+  .stat b { display:block; font-size:16px; font-variant-numeric:tabular-nums; }
+  main { padding:18px 20px 60px; }
+  nav { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
+  button { font:inherit; font-size:13px; cursor:pointer; padding:6px 12px;
+           border:1px solid var(--line); background:var(--panel); color:var(--ink);
+           border-radius:6px; }
+  button:hover { border-color:var(--accent); }
+  button[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:12px; }
+  input[type=search] { font:inherit; font-size:13px; padding:7px 10px; min-width:230px;
+                       border:1px solid var(--line); border-radius:6px;
+                       background:var(--panel); color:var(--ink); }
+  .note { color:var(--muted); font-size:13px; margin:0 0 10px; }
+  .count { color:var(--muted); font-size:12px; font-variant-numeric:tabular-nums; }
+  .tablebox { background:var(--panel); border:1px solid var(--line); border-radius:9px;
+              overflow:auto; max-height:70vh; }
+  table { border-collapse:collapse; width:100%; font-size:13px; }
+  th, td { padding:7px 11px; text-align:left; border-bottom:1px solid var(--line);
+           white-space:nowrap; }
+  th { position:sticky; top:0; background:var(--panel); z-index:2; cursor:pointer;
+       font-weight:600; font-size:12px; text-transform:uppercase;
+       letter-spacing:.03em; color:var(--muted); user-select:none; }
+  th:hover { color:var(--accent); }
+  th[aria-sort]::after { content:" ↕"; opacity:.35; }
+  th[aria-sort="ascending"]::after  { content:" ↑"; opacity:1; color:var(--accent); }
+  th[aria-sort="descending"]::after { content:" ↓"; opacity:1; color:var(--accent); }
+  tbody tr:hover { background:var(--accent-soft); }
+  td.num { text-align:right; font-variant-numeric:tabular-nums; font-family:var(--mono); }
+  td.neg { color:var(--neg); }
+  tr.sec-TOTAL { font-weight:700; background:var(--accent-soft); }
+  tr.sec-COGS td { color:var(--neg); }
+  tr.sec-Memo  td { color:var(--muted); font-style:italic; }
+  details { margin-top:12px; }
+  summary { cursor:pointer; color:var(--muted); font-size:13px; }
+  pre { background:var(--panel); border:1px solid var(--line); border-radius:7px;
+        padding:11px; overflow:auto; font-size:12px; font-family:var(--mono);
+        white-space:pre-wrap; }
+  footer { border-top:1px solid var(--line); padding:16px 20px; color:var(--muted);
+           font-size:12px; background:var(--panel); }
+  a { color:var(--accent); }
+  .err { color:var(--neg); }
+</style>
 </head>
-
 <body>
+<header><div class="wrap">
+  <h1>Employee Database — data explorer</h1>
+  <div class="sub">A MySQL schema for <strong>Employee : Customer : Order : Product</strong>,
+    built to sit under a voice assistant. Click a dataset, sort any column, filter as you type.</div>
+  <div class="stats" id="stats"></div>
+</div></header>
 
-  <div class="hero_area">
-    <div class="bg-box">
-      <img src="images/MainImage.jpg" alt="">
-    </div>
-    <!-- header section strats -->
-    <header class="header_section">
-      <div class="container">
-        <nav class="navbar navbar-expand-lg custom_nav-container ">
-          <a class="navbar-brand" href="index.html">
-            <span>
-              New Trend News
-            </span>
-          </a>
-
-          <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-            <span class=""> </span>
-          </button>
-
-          <div class="collapse navbar-collapse" id="navbarSupportedContent">
-            <ul class="navbar-nav  mx-auto ">
-              <li class="nav-item active">
-                <a class="nav-link" href="index.html">Home <span class="sr-only">(current)</span></a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link" href="trend_2.html">All Sources</a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link" href="about.html">About</a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link" href="categories.html">Categories</a>
-              </li>
-            </ul>
-            
-          </div>
-        </nav>
-      </div>
-    </header>
-    <!-- end header section -->
+<main class="wrap">
+  <nav id="nav" aria-label="Datasets"></nav>
+  <div class="toolbar">
+    <input type="search" id="filter" placeholder="Filter rows…" aria-label="Filter rows">
+    <span class="count" id="count"></span>
   </div>
+  <p class="note" id="note"></p>
+  <div class="tablebox"><table>
+    <thead><tr id="head"></tr></thead>
+    <tbody id="body"></tbody>
+  </table></div>
+  <details>
+    <summary>The SQL behind this view</summary>
+    <pre id="sql"></pre>
+  </details>
+</main>
 
-  <!-- footer section -->
-  <footer class="footer_section">
-    <div class="container">
-      <div class="row">
-        <div class="col-md-4 footer-col">
-          <div class="footer_contact">
-            <h4>
-              Contact Us
-            </h4>
-            <div class="contact_link_box">
-              <a href="">
-                <i class="fa fa-map-marker" aria-hidden="true"></i>
-                <span>
-                  Location
-                </span>
-              </a>
-              <a href="">
-                <i class="fa fa-phone" aria-hidden="true"></i>
-                <span>
-                  Call +01 1234567890
-                </span>
-              </a>
-              <a href="">
-                <i class="fa fa-envelope" aria-hidden="true"></i>
-                <span>
-                  demo@gmail.com
-                </span>
-              </a>
-            </div>
-          </div>
-        </div>
-        <div class="col-md-4 footer-col">
-          <div class="footer_detail">
-            <a href="" class="footer-logo">
-              New Trend News
-            </a>
-            <p>
-              Necessary, making this the first true generator on the Internet. It uses a dictionary of over 200 Latin words, combined with
-            </p>
-            <div class="footer_social">
-              <a href="">
-                <i class="fa fa-facebook" aria-hidden="true"></i>
-              </a>
-              <a href="">
-                <i class="fa fa-twitter" aria-hidden="true"></i>
-              </a>
-              <a href="">
-                <i class="fa fa-linkedin" aria-hidden="true"></i>
-              </a>
-              <a href="">
-                <i class="fa fa-instagram" aria-hidden="true"></i>
-              </a>
-              <a href="">
-                <i class="fa fa-pinterest" aria-hidden="true"></i>
-              </a>
-            </div>
-          </div>
-        </div>
-        <div class="col-md-4 footer-col">
-          <h4>
-            Opening Hours
-          </h4>
-          <p>
-            Everyday
-          </p>
-          <p>
-            10.00 Am -10.00 Pm
-          </p>
-        </div>
-      </div>
-      <div class="footer-info">
-        <p>
-          &copy; <span id="displayYear"></span> All Rights Reserved By
-          <a href="https://html.design/">Free Html Templates</a><br><br>
-          &copy; <span id="displayYear"></span> Distributed By
-          <a href="https://themewagon.com/" target="_blank">ThemeWagon</a>
-        </p>
-      </div>
-    </div>
-  </footer>
-  <!-- footer section -->
+<footer class="wrap">
+  Static snapshot of generated test data — every figure below is computed by the
+  database's own views, not by this page.
+  <a href="https://github.com/jchrislee16/News-Paper-Scraper">Source and schema on GitHub</a>.
+  <span id="gen"></span>
+</footer>
 
-  <!-- jQery -->
-  <script src="js/jquery-3.4.1.min.js"></script>
-  <!-- popper js -->
-  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous">
-  </script>
-  <!-- bootstrap js -->
-  <script src="js/bootstrap.js"></script>
-  <!-- owl slider -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/OwlCarousel2/2.3.4/owl.carousel.min.js">
-  </script>
-  <!-- isotope js -->
-  <script src="https://unpkg.com/isotope-layout@3.0.4/dist/isotope.pkgd.min.js"></script>
-  <!-- nice select -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-nice-select/1.1.0/js/jquery.nice-select.min.js"></script>
-  <!-- custom js -->
-  <script src="js/custom.js"></script>
-  <!-- Google Map -->
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCh39n5U-4IoWpsVGUHWdqB6puEkhRLdmI&callback=myMap">
-  </script>
-  <!-- End Google Map -->
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var state = { cols: [], rows: [], sortCol: null, sortDir: 1, key: null };
 
+  // A value is numeric if it parses as one. Money arrives as a STRING on
+  // purpose -- the exporter keeps "424.10" rather than 424.1, because float()
+  // drops trailing cents -- so this has to sniff rather than typeof.
+  function isNum(v) {
+    return v !== null && v !== "" && v !== "-" && !isNaN(Number(String(v).replace(/,/g, "")));
+  }
+  function num(v) { return Number(String(v).replace(/,/g, "")); }
+
+  function render() {
+    var q = $("filter").value.trim().toLowerCase();
+    var rows = state.rows;
+    if (q) {
+      rows = rows.filter(function (r) {
+        return r.some(function (c) { return String(c === null ? "" : c).toLowerCase().indexOf(q) > -1; });
+      });
+    }
+    if (state.sortCol !== null) {
+      var i = state.sortCol, d = state.sortDir;
+      rows = rows.slice().sort(function (a, b) {
+        var x = a[i], y = b[i];
+        if (x === null || x === undefined || x === "") return 1;   // blanks last, both ways
+        if (y === null || y === undefined || y === "") return -1;
+        if (isNum(x) && isNum(y)) return (num(x) - num(y)) * d;
+        return String(x).localeCompare(String(y), undefined, { numeric: true }) * d;
+      });
+    }
+
+    var secIdx = state.cols.indexOf("section");
+    var body = $("body");
+    body.textContent = "";
+    var frag = document.createDocumentFragment();
+    rows.forEach(function (r) {
+      var tr = document.createElement("tr");
+      if (secIdx > -1 && r[secIdx]) tr.className = "sec-" + r[secIdx];
+      r.forEach(function (c) {
+        var td = document.createElement("td");
+        var v = (c === null || c === undefined) ? "—" : String(c);
+        td.textContent = v;
+        if (isNum(c)) { td.className = "num"; if (num(c) < 0) td.className += " neg"; }
+        tr.appendChild(td);
+      });
+      frag.appendChild(tr);
+    });
+    body.appendChild(frag);
+    $("count").textContent = rows.length === state.rows.length
+      ? state.rows.length.toLocaleString() + " rows"
+      : rows.length.toLocaleString() + " of " + state.rows.length.toLocaleString() + " rows";
+  }
+
+  function head() {
+    var tr = $("head");
+    tr.textContent = "";
+    state.cols.forEach(function (c, i) {
+      var th = document.createElement("th");
+      th.textContent = c;
+      th.setAttribute("aria-sort", state.sortCol === i
+        ? (state.sortDir === 1 ? "ascending" : "descending") : "none");
+      th.addEventListener("click", function () {
+        if (state.sortCol === i) { state.sortDir = -state.sortDir; }
+        else { state.sortCol = i; state.sortDir = 1; }
+        head(); render();
+      });
+      tr.appendChild(th);
+    });
+  }
+
+  function show(payload, key) {
+    state.cols = payload.columns;
+    state.rows = payload.rows;
+    state.key = key;
+    // The P&L is already in report order; re-sorting it by default would
+    // scramble a statement that has to read top to bottom.
+    state.sortCol = null; state.sortDir = 1;
+    $("note").textContent = payload.note || "";
+    $("sql").textContent = payload.sql || "";
+    head(); render();
+  }
+
+  function load(key, btn) {
+    Array.prototype.forEach.call(document.querySelectorAll("#nav button"),
+      function (b) { b.setAttribute("aria-pressed", b === btn ? "true" : "false"); });
+    $("note").textContent = "loading…";
+    fetch("data/" + key + ".json")
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function (p) { show(p, key); })
+      .catch(function (e) {
+        $("note").innerHTML = '<span class="err">Could not load ' + key +
+          ".json (" + e.message + ").</span>";
+        $("body").textContent = ""; $("head").textContent = ""; $("count").textContent = "";
+      });
+  }
+
+  fetch("data/manifest.json")
+    .then(function (r) { return r.json(); })
+    .then(function (m) {
+      var s = $("stats");
+      (m.schema || []).forEach(function (t) {
+        var d = document.createElement("div");
+        d.className = "stat";
+        d.innerHTML = "<b>" + t.rows.toLocaleString() + "</b>" + t.table +
+                      " · " + t.columns + " cols";
+        s.appendChild(d);
+      });
+      if (m.period) {
+        var d = document.createElement("div");
+        d.className = "stat";
+        d.innerHTML = "<b>" + m.period.start + " → " + m.period.end + "</b>order dates";
+        s.appendChild(d);
+      }
+
+      var nav = $("nav"), first = null;
+      (m.datasets || []).forEach(function (ds) {
+        var b = document.createElement("button");
+        b.textContent = ds.label;
+        b.title = ds.note + "  (" + ds.rows + " rows)";
+        b.addEventListener("click", function () { load(ds.key, b); });
+        nav.appendChild(b);
+        if (!first) first = b;
+      });
+      (m.pl || []).forEach(function (p) {
+        var b = document.createElement("button");
+        b.textContent = "P&L · " + p.label;
+        b.title = "Profit and loss, " + p.range[0] + " to " + p.range[1];
+        b.addEventListener("click", function () { load("pl-" + p.key, b); });
+        nav.appendChild(b);
+      });
+      if (first) first.click();
+    })
+    .catch(function () {
+      $("note").innerHTML = '<span class="err">Could not load data/manifest.json. ' +
+        "Run <code>Employee Database/web/export_static.py</code> and commit " +
+        "<code>data/</code>.</span>";
+    });
+
+  var t;
+  $("filter").addEventListener("input", function () {
+    clearTimeout(t); t = setTimeout(render, 120);   // 3000+ rows: debounce
+  });
+})();
+</script>
 </body>
-
 </html>
