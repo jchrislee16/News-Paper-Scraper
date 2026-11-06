@@ -68,11 +68,11 @@ date ranges and the fuzzy resolvers, run the Flask viewer locally
 ## History
 
 The previous project — a personalized news feed (GitHub Pages frontend +
-Flask/TF-IDF backend on an Azure VM) — was served at this URL until
-2026-11-05 and is preserved in full at tag **`archive/v1`**:
+Flask/TF-IDF backend on an Azure VM) — was served at this URL until 2026-11-05
+and is now retired. The `archive/v1` git tag has been deleted; the whole project,
+including a git bundle of all 80 commits, is zipped at
 
-    git show archive/v1:CLAUDE.md
-    git checkout archive/v1
+    ~/Desktop/News-Paper-Scraper-Archive-2026-09-03/v1-news-project-RETIRED-2026-11-05.zip
 
 The earlier standalone `sql db` and `dummy_data.py` at this level were an
 independent 2-table draft. They were folded into the single schema above; the

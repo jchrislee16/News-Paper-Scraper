@@ -98,22 +98,33 @@ The SSH private key for the Azure VM sits in the repo root and is **untracked wi
 `.gitignore` in place** (the old one went with the clear-out). A bare `git add -A` or
 `git add .` will stage it. Stage files explicitly, or add a `.gitignore` first.
 
-## The v1 archive lives in `.git`
+## The v1 news project is retired — tag deleted, zipped on the Desktop
 
-The previous site — a personalized news feed (static GitHub Pages frontend + Flask/TF-IDF
-backend on an Azure VM) — is preserved in full at tag **`archive/v1`** (41 files). Nothing
-outside `.git` holds that history, so **`.git` must survive any future cleanup**.
+The previous site (a personalized news feed: static Pages frontend + Flask/TF-IDF
+backend on the VM) was retired on 2026-11-05. **The `archive/v1` tag has been
+DELETED**, locally and on the remote, deliberately, so it cannot be restored by
+accident. Earlier in this project it was restored by mistake and republished to
+the live site; that is the failure mode the deletion prevents.
 
-    git show archive/v1:CLAUDE.md      # full v1 architecture doc: ranking, data flow, deploy
-    git ls-tree -r archive/v1 --name-only
-    git checkout archive/v1
+Nothing was lost. Everything is in one verified zip:
 
-Read the archived `CLAUDE.md` before reviving or referencing any v1 behavior — the ranking
-pipeline and its tuning constants are documented there with the measurements behind them.
+    ~/Desktop/News-Paper-Scraper-Archive-2026-09-03/v1-news-project-RETIRED-2026-11-05.zip
 
-Belt-and-braces copies (outside git, not a substitute for the tag): zips at
-`~/Desktop/News-Paper-Scraper-Archive-2026-09-03/`. The backend never lived in this repo
-and was archived off-VM the same day.
+It contains a **git bundle with all 80 commits of history**, not just a file
+snapshot, plus the 41 frontend files, the v1 architecture doc, the Flask backend
+with its article data, and the VM's systemd/cron setup. Restore with:
+
+    git clone -b v1-archive git/v1-history.bundle v1-restored
+
+The `-b` is required: the bundle carries a branch and the tag but no default
+HEAD. Verified restore: 80 commits, 41 files.
+
+**The VM no longer runs any of it** — `news-api.service` and
+`news-tunnel.service` are stopped, disabled and deleted, the fetcher cron line is
+gone, `~/News-Paper-Scraper-Backend` is removed, and so is the deploy key that
+was generated for the tunnel-URL publisher. The VM runs MySQL only.
+
+Do not revive this without being asked. If asked, work from the zip.
 
 ## `main` is the deploy branch
 
