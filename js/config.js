@@ -7,7 +7,7 @@
  * To update: change the URL below and git push, or let the VM script handle it.
  */
 (function () {
-  window.NEWS_API_BASE = 'https://not-timer-protective-aquarium.trycloudflare.com';
+  window.NEWS_API_BASE = 'https://journals-displayed-applicants-hoped.trycloudflare.com';
 
   // --- Retry/reconnect logic ---
   var MAX_RETRIES = 5;
