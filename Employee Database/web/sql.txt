@@ -1,0 +1,149 @@
+DROP TABLE IF EXISTS order_status_history;
+DROP TABLE IF EXISTS order_item;
+DROP TABLE IF EXISTS `order`;
+DROP TABLE IF EXISTS customer_address;
+DROP TABLE IF EXISTS product;
+DROP TABLE IF EXISTS product_category;
+DROP TABLE IF EXISTS customer;
+DROP TABLE IF EXISTS employee;
+
+CREATE TABLE IF NOT EXISTS employee (
+    employee_id INT AUTO_INCREMENT PRIMARY KEY,
+    first_name VARCHAR(50) NOT NULL,
+    last_name VARCHAR(50) NOT NULL,
+    full_name VARCHAR(101) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    phone VARCHAR(50),
+    job_title VARCHAR(100),
+    department VARCHAR(50),
+    manager_id INT,
+    hired_on DATETIME,
+    is_active BOOLEAN,
+    created_at DATETIME,
+    updated_at DATETIME
+);
+
+CREATE TABLE IF NOT EXISTS customer (
+    customer_id INT AUTO_INCREMENT PRIMARY KEY,
+    first_name VARCHAR(50) NOT NULL,
+    last_name VARCHAR(50) NOT NULL,
+    full_name VARCHAR(101) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    phone VARCHAR(50),
+    tier VARCHAR(50),
+    account_manager_id INT,
+    signed_up_on DATETIME,
+    is_active BOOLEAN,
+    created_at DATETIME,
+    updated_at DATETIME
+);
+
+CREATE TABLE IF NOT EXISTS product_category (
+    category_id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    name TEXT NOT NULL,
+    parent_category_id BIGINT DEFAULT NULL,
+    description TEXT,
+    CONSTRAINT fk_parent_category 
+        FOREIGN KEY (parent_category_id) 
+        REFERENCES product_category (category_id) 
+        ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS product (
+    product_id INT AUTO_INCREMENT PRIMARY KEY,
+    sku VARCHAR(100) UNIQUE NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    brand VARCHAR(100),
+    description TEXT,
+    category_id BIGINT,
+    unit_price DECIMAL(10, 2),
+    unit_cost DECIMAL(10, 2),
+    currency CHAR(3) DEFAULT 'USD',
+    stock_quantity INT,
+    reorder_level INT,
+    is_active BOOLEAN,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    search_document TEXT,
+    CONSTRAINT fk_product_category 
+        FOREIGN KEY (category_id) 
+        REFERENCES product_category (category_id) 
+        ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS `order` (
+    order_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    order_number TEXT NOT NULL,
+    customer_id BIGINT NOT NULL,
+    sales_rep_id BIGINT,
+    status VARCHAR(50), 
+    ordered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    shipped_at TIMESTAMP NULL,
+    delivered_at TIMESTAMP NULL,
+    cancelled_at TIMESTAMP NULL,
+    method VARCHAR(50),
+    shipping_address_id BIGINT,
+    billing_address_id BIGINT,
+    shipping_fee DECIMAL(12, 2),
+    tax_total DECIMAL(12, 2),
+    discount_total DECIMAL(12, 2),
+    currency CHAR(3),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_order_customer 
+        FOREIGN KEY (customer_id) 
+        REFERENCES customer (customer_id)
+);
+
+CREATE TABLE IF NOT EXISTS order_item (
+    order_item_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    order_id BIGINT NOT NULL,
+    product_id BIGINT NOT NULL,
+    quantity INT,
+    unit_price DECIMAL(10, 2),
+    unit_cost DECIMAL(10, 2),
+    discount DECIMAL(10, 2),
+    line_total DECIMAL(10, 2),
+    line_cost DECIMAL(10, 2),
+    CONSTRAINT fk_item_order 
+        FOREIGN KEY (order_id) 
+        REFERENCES `order` (order_id) 
+        ON DELETE CASCADE,
+    CONSTRAINT fk_item_product 
+        FOREIGN KEY (product_id) 
+        REFERENCES product (product_id)
+);
+
+CREATE TABLE IF NOT EXISTS customer_address (
+    address_id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    customer_id BIGINT NOT NULL,
+    kind ENUM('billing', 'shipping') NOT NULL,
+    label TEXT,
+    line1 TEXT,
+    line2 TEXT,
+    city TEXT,
+    state_region TEXT,
+    postal_code TEXT,
+    country_code CHAR(2),
+    is_default BOOLEAN,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_address_customer 
+        FOREIGN KEY (customer_id) 
+        REFERENCES customer (customer_id) 
+        ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS order_status_history (
+    history_id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    order_id BIGINT NOT NULL,
+    old_status ENUM('pending', 'paid', 'shipped', 'delivered', 'cancelled', 'refunded') DEFAULT NULL,
+    new_status ENUM('pending', 'paid', 'shipped', 'delivered', 'cancelled', 'refunded') NOT NULL,
+    changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    changed_by BIGINT DEFAULT NULL,
+    source TEXT DEFAULT NULL,
+    CONSTRAINT fk_history_order 
+        FOREIGN KEY (order_id) 
+        REFERENCES `order` (order_id) 
+        ON DELETE CASCADE
+);
